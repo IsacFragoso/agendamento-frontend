@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+
+const API_BASE = 'http://localhost:8000';
 
 function App() {
   const [telaAtual, setTelaAtual] = useState('login');
@@ -7,20 +9,16 @@ function App() {
   const [formCadastro, setFormCadastro] = useState({ nome_completo: '', email: '', telefone: '', senha: '', tipo_conta: 'Prestador' });
   const [formLogin, setFormLogin] = useState({ email: '', senha: '' });
   
-  // RF03 - Portfólio (Prestador)
+  // Portfólio & Agenda (Prestador)
   const [servicos, setServicos] = useState([]);
   const [formServico, setFormServico] = useState({ titulo: '', descricao: '', preco: '' });
-
-  // RF04 - Agenda (Prestador)
   const [horariosPorDia, setHorariosPorDia] = useState([]);
   const [diaSelecionado, setDiaSelecionado] = useState('Segunda');
   const [horaInicio, setHoraInicio] = useState('08:00');
   const [horaFim, setHoraFim] = useState('18:00');
-
-  // RF06 - Solicitações do Prestador
   const [solicitacoesRecebidas, setSolicitacoesRecebidas] = useState([]);
 
-  // RF05 - Módulo Cliente
+  // Módulo Cliente
   const [todosServicos, setTodosServicos] = useState([]);
   const [meusAgendamentos, setMeusAgendamentos] = useState([]);
   const [servicoSelecionado, setServicoSelecionado] = useState(null);
@@ -29,24 +27,90 @@ function App() {
 
   const diasDaSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
+  // Funções de Carregamento de Dados com Tratamento de Erros Seguro
+  const carregarServicos = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE}/servicos/${id}`);
+      const dados = await res.json();
+      setServicos(Array.isArray(dados) ? dados : []);
+    } catch (e) { 
+      console.error('Erro ao carregar serviços:', e);
+      setServicos([]);
+    }
+  };
+
+  const carregarAgenda = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE}/agenda/${id}`);
+      const dados = await res.json();
+      if (dados?.horariosPorDia && Array.isArray(dados.horariosPorDia)) {
+        setHorariosPorDia(dados.horariosPorDia);
+      } else {
+        setHorariosPorDia([]);
+      }
+    } catch (e) { 
+      console.error('Erro ao carregar agenda:', e); 
+      setHorariosPorDia([]);
+    }
+  };
+
+  const carregarSolicitacoesRecebidas = async (prestadorId) => {
+    try {
+      const res = await fetch(`${API_BASE}/agendamentos/prestador/${prestadorId}`);
+      const dados = await res.json();
+      if (Array.isArray(dados)) {
+        setSolicitacoesRecebidas(dados);
+      } else {
+        console.error('Resposta inesperada da API (não é array):', dados);
+        setSolicitacoesRecebidas([]);
+      }
+    } catch (e) { 
+      console.error('Erro ao carregar solicitações:', e); 
+      setSolicitacoesRecebidas([]);
+    }
+  };
+
+  const carregarTodosServicos = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/servicos`);
+      const dados = await res.json();
+      setTodosServicos(Array.isArray(dados) ? dados : []);
+    } catch (e) { 
+      console.error('Erro ao carregar todos os serviços:', e); 
+      setTodosServicos([]);
+    }
+  };
+
+  const carregarMeusAgendamentos = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE}/agendamentos/cliente/${id}`);
+      const dados = await res.json();
+      setMeusAgendamentos(Array.isArray(dados) ? dados : []);
+    } catch (e) { 
+      console.error('Erro ao carregar meus agendamentos:', e); 
+      setMeusAgendamentos([]);
+    }
+  };
+
+  // Handlers Autenticação
   const handleCadastro = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:8000/usuarios', {
+      const res = await fetch(`${API_BASE}/usuarios`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formCadastro)
       });
       const dados = await res.json();
       alert(dados.mensagem);
-      setTelaAtual('login');
+      if (res.ok) setTelaAtual('login');
     } catch (e) { alert('Erro no servidor.'); }
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:8000/login', {
+      const res = await fetch(`${API_BASE}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formLogin)
@@ -69,28 +133,10 @@ function App() {
     } catch (e) { alert('Erro ao conectar.'); }
   };
 
-  // Funções Prestador
-  const carregarServicos = async (id) => {
-    const res = await fetch(`http://localhost:8000/servicos/${id}`);
-    setServicos(await res.json());
-  };
-
-  const carregarAgenda = async (id) => {
-    const res = await fetch(`http://localhost:8000/agenda/${id}`);
-    const dados = await res.json();
-    if (dados?.horariosPorDia) setHorariosPorDia(dados.horariosPorDia);
-  };
-
-  const carregarSolicitacoesRecebidas = async (prestadorId) => {
-    try {
-      const res = await fetch(`http://localhost:8000/agendamentos/prestador/${prestadorId}`);
-      setSolicitacoesRecebidas(await res.json());
-    } catch (e) { console.error(e); }
-  };
-
+  // Handlers Prestador
   const handleAtualizarStatusAgendamento = async (id, novoStatus) => {
     try {
-      const res = await fetch(`http://localhost:8000/agendamentos/${id}/status`, {
+      const res = await fetch(`${API_BASE}/agendamentos/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: novoStatus })
@@ -103,7 +149,7 @@ function App() {
 
   const handleCadastrarServico = async (e) => {
     e.preventDefault();
-    const res = await fetch('http://localhost:8000/servicos', {
+    const res = await fetch(`${API_BASE}/servicos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...formServico, prestadorId: usuarioLogado.id })
@@ -115,13 +161,13 @@ function App() {
   };
 
   const handleDeletarServico = async (id) => {
-    await fetch(`http://localhost:8000/servicos/${id}`, { method: 'DELETE' });
+    await fetch(`${API_BASE}/servicos/${id}`, { method: 'DELETE' });
     carregarServicos(usuarioLogado.id);
   };
 
   const handleSalvarHorarioDia = async (e) => {
     e.preventDefault();
-    const res = await fetch('http://localhost:8000/agenda', {
+    const res = await fetch(`${API_BASE}/agenda`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prestadorId: usuarioLogado.id, dia: diaSelecionado, horaInicio, horaFim })
@@ -132,26 +178,16 @@ function App() {
   };
 
   const handleRemoverDia = async (dia) => {
-    await fetch(`http://localhost:8000/agenda/${usuarioLogado.id}/${dia}`, { method: 'DELETE' });
+    await fetch(`${API_BASE}/agenda/${usuarioLogado.id}/${dia}`, { method: 'DELETE' });
     carregarAgenda(usuarioLogado.id);
   };
 
-  // Funções Cliente
-  const carregarTodosServicos = async () => {
-    const res = await fetch('http://localhost:8000/servicos');
-    setTodosServicos(await res.json());
-  };
-
-  const carregarMeusAgendamentos = async (id) => {
-    const res = await fetch(`http://localhost:8000/agendamentos/cliente/${id}`);
-    setMeusAgendamentos(await res.json());
-  };
-
+  // Handlers Cliente
   const handleSolicitarAgendamento = async (e) => {
     e.preventDefault();
     if (!servicoSelecionado) return alert('Selecione um serviço.');
 
-    const res = await fetch('http://localhost:8000/agendamentos', {
+    const res = await fetch(`${API_BASE}/agendamentos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -172,12 +208,11 @@ function App() {
 
   return (
     <div style={{ maxWidth: '650px', margin: '40px auto', padding: '20px', fontFamily: 'sans-serif' }}>
-      
       {telaAtual === 'login' && (
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <h2>Entrar (RF02)</h2>
-          <input placeholder="E-mail" type="email" onChange={e => setFormLogin({...formLogin, email: e.target.value})} required />
-          <input placeholder="Senha" type="password" onChange={e => setFormLogin({...formLogin, senha: e.target.value})} required />
+          <input placeholder="E-mail" type="email" onChange={e => setFormLogin({ ...formLogin, email: e.target.value })} required />
+          <input placeholder="Senha" type="password" onChange={e => setFormLogin({ ...formLogin, senha: e.target.value })} required />
           <button type="submit" style={{ padding: '10px', backgroundColor: '#008C4A', color: 'white', border: 'none', cursor: 'pointer' }}>Entrar</button>
           <p style={{ cursor: 'pointer', color: 'blue' }} onClick={() => setTelaAtual('cadastro')}>Não tem conta? Cadastre-se</p>
         </form>
@@ -186,11 +221,11 @@ function App() {
       {telaAtual === 'cadastro' && (
         <form onSubmit={handleCadastro} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <h2>Criar Conta (RF01)</h2>
-          <input placeholder="Nome Completo" onChange={e => setFormCadastro({...formCadastro, nome_completo: e.target.value})} required />
-          <input placeholder="E-mail" type="email" onChange={e => setFormCadastro({...formCadastro, email: e.target.value})} required />
-          <input placeholder="Telefone" onChange={e => setFormCadastro({...formCadastro, telefone: e.target.value})} required />
-          <input placeholder="Senha" type="password" onChange={e => setFormCadastro({...formCadastro, senha: e.target.value})} required />
-          <select onChange={e => setFormCadastro({...formCadastro, tipo_conta: e.target.value})}>
+          <input placeholder="Nome Completo" onChange={e => setFormCadastro({ ...formCadastro, nome_completo: e.target.value })} required />
+          <input placeholder="E-mail" type="email" onChange={e => setFormCadastro({ ...formCadastro, email: e.target.value })} required />
+          <input placeholder="Telefone" onChange={e => setFormCadastro({ ...formCadastro, telefone: e.target.value })} required />
+          <input placeholder="Senha" type="password" onChange={e => setFormCadastro({ ...formCadastro, senha: e.target.value })} required />
+          <select onChange={e => setFormCadastro({ ...formCadastro, tipo_conta: e.target.value })}>
             <option value="Prestador">Prestador</option>
             <option value="Cliente">Cliente</option>
           </select>
@@ -203,7 +238,7 @@ function App() {
         <div>
           <h2>Painel do {usuarioLogado.tipo_conta}</h2>
           <p>Usuário: <strong>{usuarioLogado.nome_completo}</strong></p>
-          <button onClick={() => setTelaAtual('login')} style={{ marginBottom: '20px' }}>Sair</button>
+          <button onClick={() => { setUsuarioLogado(null); setTelaAtual('login'); }} style={{ marginBottom: '20px' }}>Sair</button>
 
           {/* PAINEL DO PRESTADOR */}
           {usuarioLogado.tipo_conta === 'Prestador' && (
@@ -240,9 +275,9 @@ function App() {
               <div style={{ borderTop: '1px solid #ccc', paddingTop: '20px', marginBottom: '30px' }}>
                 <h3>Meu Portfólio (RF03)</h3>
                 <form onSubmit={handleCadastrarServico} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-                  <input placeholder="Título do Serviço" value={formServico.titulo} onChange={e => setFormServico({...formServico, titulo: e.target.value})} required />
-                  <input placeholder="Descrição" value={formServico.descricao} onChange={e => setFormServico({...formServico, descricao: e.target.value})} required />
-                  <input placeholder="Preço (R$)" type="number" value={formServico.preco} onChange={e => setFormServico({...formServico, preco: e.target.value})} required />
+                  <input placeholder="Título do Serviço" value={formServico.titulo} onChange={e => setFormServico({ ...formServico, titulo: e.target.value })} required />
+                  <input placeholder="Descrição" value={formServico.descricao} onChange={e => setFormServico({ ...formServico, descricao: e.target.value })} required />
+                  <input placeholder="Preço (R$)" type="number" value={formServico.preco} onChange={e => setFormServico({ ...formServico, preco: e.target.value })} required />
                   <button type="submit" style={{ padding: '8px', backgroundColor: '#2196F3', color: 'white', border: 'none', cursor: 'pointer' }}>Adicionar Serviço</button>
                 </form>
 
@@ -348,7 +383,6 @@ function App() {
               </div>
             </div>
           )}
-
         </div>
       )}
     </div>
