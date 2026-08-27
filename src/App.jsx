@@ -1,19 +1,35 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import DashboardLayout from './DashboardLayout';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = 'http://localhost:8000/api';
+
+const apiFetch = (path, options = {}, token = null) => fetch(`${API_BASE}${path}`, {
+  ...options,
+  headers: {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options.headers || {})
+  }
+});
+
+const jsonOrEmpty = async (response) => {
+  const text = await response.text();
+  return text ? JSON.parse(text) : {};
+};
 
 function App() {
   const [telaAtual, setTelaAtual] = useState('login');
   const [usuarioLogado, setUsuarioLogado] = useState(null);
+  const [token, setToken] = useState(null);
   const [abaAtiva, setAbaAtiva] = useState('Agenda');
 
-  const [formCadastro, setFormCadastro] = useState({ nome_completo: '', email: '', telefone: '', senha: '', tipo_conta: 'Prestador' });
+  const [formCadastro, setFormCadastro] = useState({ nome_completo: '', email: '', telefone: '', senha: '', tipo_conta: 'PRESTADOR' });
   const [formLogin, setFormLogin] = useState({ email: '', senha: '' });
 
   // Portfólio & Agenda (Prestador)
   const [servicos, setServicos] = useState([]);
-  const [formServico, setFormServico] = useState({ titulo: '', descricao: '', preco: '' });
+  const [formServico, setFormServico] = useState({ titulo: '', descricao: '', preco: '', duracao_padrao: '60', id_categoria: '' });
+  const [categorias, setCategorias] = useState([]);
   const [horariosPorDia, setHorariosPorDia] = useState([]);
   const [diaSelecionado, setDiaSelecionado] = useState('Segunda');
   const [horaInicio, setHoraInicio] = useState('08:00');
@@ -32,7 +48,8 @@ function App() {
   // Funções de Auxílio para Formatação
   const formatarHora = (hora) => {
     if (!hora) return '';
-    return hora.toString().slice(0, 5);
+    const texto = hora.toString();
+    return texto.includes('T') ? texto.split('T')[1].slice(0, 5) : texto.slice(0, 5);
   };
 
   const formatarData = (data) => {
@@ -44,11 +61,17 @@ function App() {
     return data;
   };
 
+  const calcularFimAgendamento = (data, hora, duracao) => {
+    const inicio = new Date(`${data}T${hora}:00`);
+    inicio.setMinutes(inicio.getMinutes() + Number(duracao || 60));
+    return inicio.toISOString();
+  };
+
   // Funções de Carregamento de Dados
   const carregarServicos = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/servicos/${id}`);
-      const dados = await res.json();
+      const res = await apiFetch(`/servicos/prestador/${id}`);
+      const dados = await jsonOrEmpty(res);
       setServicos(Array.isArray(dados) ? dados : []);
     } catch (e) {
       console.error('Erro ao carregar serviços:', e);
@@ -58,19 +81,19 @@ function App() {
 
   const carregarAgenda = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/agenda/${id}`);
-      const dados = await res.json();
-      setHorariosPorDia(dados?.horariosPorDia && Array.isArray(dados.horariosPorDia) ? dados.horariosPorDia : []);
+      const res = await apiFetch(`/prestadores/${id}/horario`);
+      const dados = await jsonOrEmpty(res);
+      setHorariosPorDia(dados?.dias_atendimento ? [{ dia: dados.dias_atendimento, hora_inicio: dados.horario_inicio, hora_fim: dados.horario_fim }] : []);
     } catch (e) {
       console.error('Erro ao carregar agenda:', e);
       setHorariosPorDia([]);
     }
   };
 
-  const carregarSolicitacoesRecebidas = async (prestadorId) => {
+  const carregarSolicitacoesRecebidas = async (prestadorId, authToken = token) => {
     try {
-      const res = await fetch(`${API_BASE}/agendamentos/prestador/${prestadorId}`);
-      const dados = await res.json();
+      const res = await apiFetch('/agendamentos', {}, authToken);
+      const dados = await jsonOrEmpty(res);
       setSolicitacoesRecebidas(Array.isArray(dados) ? dados : []);
     } catch (e) {
       console.error('Erro ao carregar solicitações:', e);
@@ -80,8 +103,8 @@ function App() {
 
   const carregarTodosServicos = async () => {
     try {
-      const res = await fetch(`${API_BASE}/servicos`);
-      const dados = await res.json();
+      const res = await apiFetch('/servicos');
+      const dados = await jsonOrEmpty(res);
       setTodosServicos(Array.isArray(dados) ? dados : []);
     } catch (e) {
       console.error('Erro ao carregar todos os serviços:', e);
@@ -89,10 +112,10 @@ function App() {
     }
   };
 
-  const carregarMeusAgendamentos = async (id) => {
+  const carregarMeusAgendamentos = async (id, authToken = token) => {
     try {
-      const res = await fetch(`${API_BASE}/agendamentos/cliente/${id}`);
-      const dados = await res.json();
+      const res = await apiFetch('/agendamentos', {}, authToken);
+      const dados = await jsonOrEmpty(res);
       setMeusAgendamentos(Array.isArray(dados) ? dados : []);
     } catch (e) {
       console.error('Erro ao carregar meus agendamentos:', e);
@@ -104,15 +127,15 @@ function App() {
   const handleCadastro = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${API_BASE}/usuarios`, {
+      const res = await apiFetch('/usuarios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formCadastro)
       });
-      const dados = await res.json();
+      const dados = await jsonOrEmpty(res);
       alert(dados?.mensagem || dados?.erro || 'Operação realizada.');
       if (res.ok) setTelaAtual('login');
-    } catch (e) {
+    } catch {
       alert('Erro no servidor.');
     }
   };
@@ -120,29 +143,33 @@ function App() {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${API_BASE}/login`, {
+      const res = await apiFetch('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formLogin)
       });
-      const dados = await res.json();
+      const dados = await jsonOrEmpty(res);
 
       if (res.ok) {
-        setUsuarioLogado(dados.usuario);
+        const usuario = { ...dados.usuario, id: dados.usuario.id_usuario, tipo_conta: dados.usuario.tipo_conta.toUpperCase() };
+        setToken(dados.access_token);
+        setUsuarioLogado(usuario);
         setTelaAtual('dashboard');
+        const categoriasRes = await apiFetch('/categorias');
+        setCategorias(await jsonOrEmpty(categoriasRes));
 
-        if (dados.usuario.tipo_conta === 'Prestador') {
-          carregarServicos(dados.usuario.id);
-          carregarAgenda(dados.usuario.id);
-          carregarSolicitacoesRecebidas(dados.usuario.id);
+        if (usuario.tipo_conta === 'PRESTADOR') {
+          carregarServicos(usuario.id);
+          carregarAgenda(usuario.id);
+          carregarSolicitacoesRecebidas(usuario.id, dados.access_token);
         } else {
           carregarTodosServicos();
-          carregarMeusAgendamentos(dados.usuario.id);
+          carregarMeusAgendamentos(usuario.id, dados.access_token);
         }
       } else {
         alert(dados?.mensagem || dados?.erro || 'Falha ao realizar login.');
       }
-    } catch (e) {
+    } catch {
       alert('Erro ao conectar com o servidor.');
     }
   };
@@ -150,15 +177,14 @@ function App() {
   // Handlers Prestador
   const handleAtualizarStatusAgendamento = async (id, novoStatus) => {
     try {
-      const res = await fetch(`${API_BASE}/agendamentos/${id}/status`, {
+      const res = await apiFetch(`/agendamentos/${id}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: novoStatus })
-      });
-      const dados = await res.json();
+        body: JSON.stringify({ status: novoStatus.toUpperCase() })
+      }, token);
+      const dados = await jsonOrEmpty(res);
       alert(dados?.mensagem || dados?.erro || 'Status atualizado.');
       carregarSolicitacoesRecebidas(usuarioLogado.id);
-    } catch (e) {
+    } catch {
       alert('Erro ao atualizar status.');
     }
   };
@@ -172,33 +198,35 @@ function App() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/servicos`, {
+      const res = await apiFetch('/servicos', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formServico,
+          titulo: formServico.titulo,
+          descricao: formServico.descricao,
           preco: precoConvertido,
-          prestadorId: parseInt(usuarioLogado.id, 10)
+          duracao_padrao: parseInt(formServico.duracao_padrao, 10),
+          id_prestador: parseInt(usuarioLogado.id, 10),
+          id_categoria: parseInt(formServico.id_categoria, 10)
         })
-      });
+      }, token);
 
-      const dados = await res.json();
+      const dados = await jsonOrEmpty(res);
       if (res.ok) {
-        setFormServico({ titulo: '', descricao: '', preco: '' });
+        setFormServico({ titulo: '', descricao: '', preco: '', duracao_padrao: '60', id_categoria: '' });
         carregarServicos(usuarioLogado.id);
       } else {
         alert(dados?.mensagem || dados?.erro || 'Erro ao cadastrar serviço.');
       }
-    } catch (e) {
+    } catch {
       alert('Erro ao conectar com o servidor.');
     }
   };
 
   const handleDeletarServico = async (id) => {
     try {
-      await fetch(`${API_BASE}/servicos/${id}`, { method: 'DELETE' });
+      await apiFetch(`/servicos/${id}`, { method: 'DELETE' }, token);
       carregarServicos(usuarioLogado.id);
-    } catch (e) {
+    } catch {
       alert('Erro ao excluir serviço.');
     }
   };
@@ -206,15 +234,14 @@ function App() {
   const handleSalvarHorarioDia = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${API_BASE}/agenda`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prestadorId: usuarioLogado.id, dia: diaSelecionado, horaInicio, horaFim })
-      });
-      const dados = await res.json();
+      const res = await apiFetch(`/prestadores/${usuarioLogado.id}/horario`, {
+        method: 'PUT',
+        body: JSON.stringify({ dias_atendimento: diaSelecionado, horario_inicio: horaInicio, horario_fim: horaFim })
+      }, token);
+      const dados = await jsonOrEmpty(res);
       alert(dados?.mensagem || dados?.erro || 'Horário salvo.');
       carregarAgenda(usuarioLogado.id);
-    } catch (e) {
+    } catch {
       alert('Erro ao salvar horário.');
     }
   };
@@ -222,14 +249,14 @@ function App() {
   const handleRemoverDia = async (dia) => {
     if (!dia) return alert('Dia inválido para exclusão.');
     try {
-      const res = await fetch(`${API_BASE}/agenda/${usuarioLogado.id}/${encodeURIComponent(dia)}`, { method: 'DELETE' });
-      const dados = await res.json();
+      const res = await apiFetch(`/prestadores/${usuarioLogado.id}/horario`, { method: 'DELETE' }, token);
+      const dados = await jsonOrEmpty(res);
       if (res.ok) {
         carregarAgenda(usuarioLogado.id);
       } else {
         alert(dados?.erro || dados?.mensagem || 'Erro ao remover dia da agenda.');
       }
-    } catch (e) {
+    } catch {
       alert('Erro ao remover dia da agenda.');
     }
   };
@@ -241,32 +268,23 @@ function App() {
 
     const clienteId = parseInt(usuarioLogado?.id || usuarioLogado?.id_usuario, 10);
     const servicoId = parseInt(servicoSelecionado?.id || servicoSelecionado?.id_servico, 10);
-    const prestadorId = parseInt(
-      servicoSelecionado?.prestadorId || 
-      servicoSelecionado?.prestador_id || 
-      servicoSelecionado?.usuario_id, 
-      10
-    );
-
-    if (isNaN(clienteId) || isNaN(servicoId) || isNaN(prestadorId)) {
+    if (isNaN(clienteId) || isNaN(servicoId)) {
       return alert(`Aviso: Um dos IDs está indefinido.
-  Cliente: ${clienteId} | Serviço: ${servicoId} | Prestador: ${prestadorId}`);
+  Cliente: ${clienteId} | Serviço: ${servicoId}`);
     }
 
     try {
-      const res = await fetch(`${API_BASE}/agendamentos`, {
+      const res = await apiFetch('/agendamentos', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          clienteId,
-          servicoId,
-          prestadorId,
-          data: dataAgendamento,
-          hora: horaAgendamento
+          id_cliente: clienteId,
+          id_servico: servicoId,
+          data_hora_inicio: new Date(`${dataAgendamento}T${horaAgendamento}:00`).toISOString(),
+          data_hora_fim: calcularFimAgendamento(dataAgendamento, horaAgendamento, servicoSelecionado.duracao_padrao)
         })
-      });
+      }, token);
 
-      const dados = await res.json();
+      const dados = await jsonOrEmpty(res);
 
       if (res.ok) {
         alert(dados?.mensagem || 'Solicitação de agendamento enviada com sucesso!');
@@ -276,7 +294,7 @@ function App() {
       } else {
         alert(dados?.erro || dados?.mensagem || 'Erro ao processar solicitação.');
       }
-    } catch (e) {
+    } catch {
       alert('Erro ao conectar com o servidor.');
     }
   };
@@ -305,9 +323,9 @@ function App() {
           <input placeholder="E-mail" type="email" onChange={e => setFormCadastro({ ...formCadastro, email: e.target.value })} required style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }} />
           <input placeholder="Telefone" onChange={e => setFormCadastro({ ...formCadastro, telefone: e.target.value })} required style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }} />
           <input placeholder="Senha" type="password" onChange={e => setFormCadastro({ ...formCadastro, senha: e.target.value })} required style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }} />
-          <select onChange={e => setFormCadastro({ ...formCadastro, tipo_conta: e.target.value })} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }}>
-            <option value="Prestador">Prestador</option>
-            <option value="Cliente">Cliente</option>
+          <select value={formCadastro.tipo_conta} onChange={e => setFormCadastro({ ...formCadastro, tipo_conta: e.target.value })} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }}>
+            <option value="PRESTADOR">Prestador</option>
+            <option value="CLIENTE">Cliente</option>
           </select>
           <button type="submit" style={{ padding: '12px', backgroundColor: '#0E5A36', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Cadastrar</button>
         </form>
@@ -330,16 +348,16 @@ function App() {
       </div>
 
       {/* PAINEL PRESTADOR */}
-      {usuarioLogado?.tipo_conta === 'Prestador' && (
+      {usuarioLogado?.tipo_conta === 'PRESTADOR' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
             <div className="card">
               <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Agendamentos hoje</span>
-              <h2 style={{ margin: '8px 0', fontSize: '1.8rem' }}>{solicitacoesRecebidas.filter(s => s.status === 'Confirmado').length}</h2>
+              <h2 style={{ margin: '8px 0', fontSize: '1.8rem' }}>{solicitacoesRecebidas.filter(s => s.status === 'CONFIRMADO').length}</h2>
             </div>
             <div className="card">
               <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Solicitações Pendentes</span>
-              <h2 style={{ margin: '8px 0', fontSize: '1.8rem', color: '#D97706' }}>{solicitacoesRecebidas.filter(s => s.status === 'Pendente').length}</h2>
+              <h2 style={{ margin: '8px 0', fontSize: '1.8rem', color: '#D97706' }}>{solicitacoesRecebidas.filter(s => s.status === 'PENDENTE').length}</h2>
             </div>
             <div className="card">
               <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Serviços Ativos</span>
@@ -357,18 +375,18 @@ function App() {
                   {solicitacoesRecebidas.map((a) => (
                     <div key={a.id} style={{ border: '1px solid var(--border-color)', padding: '16px', borderRadius: '12px', background: '#FAF9F6' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <strong>{a.nomeCliente || a.nome_cliente}</strong>
+                        <strong>{a.cliente?.nome_completo || 'Cliente'}</strong>
                         <span className={`status-badge ${(a.status || '').toLowerCase()}`}>{a.status}</span>
                       </div>
-                      <p style={{ margin: '4px 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>{a.tituloServico || a.titulo_servico} • R$ {a.precoServico || a.preco}</p>
-                      <p style={{ margin: '4px 0 12px 0', fontSize: '0.9rem' }}>📅 {formatarData(a.data || a.data_agendamento)} às {formatarHora(a.hora || a.hora_agendamento)}</p>
+                      <p style={{ margin: '4px 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>{a.servico?.titulo} • R$ {a.servico?.preco}</p>
+                      <p style={{ margin: '4px 0 12px 0', fontSize: '0.9rem' }}>📅 {formatarData(a.data_hora_inicio)} às {formatarHora(a.data_hora_inicio)}</p>
 
-                      {a.status === 'Pendente' && (
+                      {a.status === 'PENDENTE' && (
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          <button onClick={() => handleAtualizarStatusAgendamento(a.id, 'Confirmado')} style={{ flex: 1, backgroundColor: 'var(--primary-green)', color: '#fff', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+                          <button onClick={() => handleAtualizarStatusAgendamento(a.id_agendamento, 'CONFIRMADO')} style={{ flex: 1, backgroundColor: 'var(--primary-green)', color: '#fff', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
                             ✓ Aceitar
                           </button>
-                          <button onClick={() => handleAtualizarStatusAgendamento(a.id, 'Cancelado')} style={{ flex: 1, backgroundColor: 'transparent', color: '#9B1C1C', border: '1px solid #FDE8E8', padding: '8px', borderRadius: '6px', cursor: 'pointer' }}>
+                          <button onClick={() => handleAtualizarStatusAgendamento(a.id_agendamento, 'CANCELADO')} style={{ flex: 1, backgroundColor: 'transparent', color: '#9B1C1C', border: '1px solid #FDE8E8', padding: '8px', borderRadius: '6px', cursor: 'pointer' }}>
                             ✕ Recusar
                           </button>
                         </div>
@@ -388,17 +406,22 @@ function App() {
                   <input placeholder="Título do Serviço" value={formServico.titulo} onChange={e => setFormServico({ ...formServico, titulo: e.target.value })} required style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc' }} />
                   <input placeholder="Descrição" value={formServico.descricao} onChange={e => setFormServico({ ...formServico, descricao: e.target.value })} required style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc' }} />
                   <input placeholder="Preço (R$)" type="number" value={formServico.preco} onChange={e => setFormServico({ ...formServico, preco: e.target.value })} required style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                  <input placeholder="Duração (minutos)" type="number" min="1" value={formServico.duracao_padrao} onChange={e => setFormServico({ ...formServico, duracao_padrao: e.target.value })} required style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                  <select value={formServico.id_categoria} onChange={e => setFormServico({ ...formServico, id_categoria: e.target.value })} required style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc' }}>
+                    <option value="">Selecione uma categoria</option>
+                    {categorias.map(categoria => <option key={categoria.id_categoria} value={categoria.id_categoria}>{categoria.nome}</option>)}
+                  </select>
                   <button type="submit" style={{ padding: '10px', backgroundColor: 'var(--primary-green)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>+ Adicionar Serviço</button>
                 </form>
 
                 <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
                   {servicos.map(s => (
-                    <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #eee' }}>
+                    <div key={s.id_servico} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #eee' }}>
                       <div>
                         <strong>{s.titulo}</strong>
                         <div style={{ fontSize: '0.85rem', color: '#666' }}>R$ {s.preco}</div>
                       </div>
-                      <button onClick={() => handleDeletarServico(s.id)} style={{ backgroundColor: 'transparent', color: 'red', border: 'none', cursor: 'pointer' }}>Excluir</button>
+                      <button onClick={() => handleDeletarServico(s.id_servico)} style={{ backgroundColor: 'transparent', color: 'red', border: 'none', cursor: 'pointer' }}>Excluir</button>
                     </div>
                   ))}
                 </div>
@@ -447,19 +470,19 @@ function App() {
       )}
 
       {/* PAINEL CLIENTE */}
-      {usuarioLogado?.tipo_conta === 'Cliente' && (
+      {usuarioLogado?.tipo_conta === 'CLIENTE' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
           {(abaAtiva === 'Agenda' || abaAtiva === 'Perfil') && (
             <div className="card">
               <h3>Serviços Disponíveis (RF05)</h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '15px' }}>
                 {todosServicos.map(s => (
-                  <div key={s.id} style={{ border: servicoSelecionado?.id === s.id ? '2px solid var(--primary-green)' : '1px solid var(--border-color)', padding: '16px', borderRadius: '12px', background: servicoSelecionado?.id === s.id ? '#E2ECE6' : '#fff' }}>
+                  <div key={s.id_servico} style={{ border: servicoSelecionado?.id_servico === s.id_servico ? '2px solid var(--primary-green)' : '1px solid var(--border-color)', padding: '16px', borderRadius: '12px', background: servicoSelecionado?.id_servico === s.id_servico ? '#E2ECE6' : '#fff' }}>
                     <h4 style={{ margin: '0 0 6px 0' }}>{s.titulo}</h4>
                     <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem', color: '#555' }}>{s.descricao}</p>
                     <p style={{ margin: '0 0 12px 0', fontWeight: 'bold' }}>R$ {s.preco}</p>
                     <button onClick={() => setServicoSelecionado(s)} style={{ width: '100%', padding: '8px', backgroundColor: 'var(--primary-green)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
-                      {servicoSelecionado?.id === s.id ? 'Selecionado' : 'Agendar'}
+                      {servicoSelecionado?.id_servico === s.id_servico ? 'Selecionado' : 'Agendar'}
                     </button>
                   </div>
                 ))}
@@ -500,14 +523,14 @@ function App() {
                 </thead>
                 <tbody>
                   {meusAgendamentos.map(a => {
-                    const dataFormatada = formatarData(a.data || a.data_agendamento);
-                    const horaFormatada = formatarHora(a.hora || a.hora_agendamento);
+                    const dataFormatada = formatarData(a.data_hora_inicio);
+                    const horaFormatada = formatarHora(a.data_hora_inicio);
 
                     return (
-                      <tr key={a.id}>
+                      <tr key={a.id_agendamento}>
                         <td>{dataFormatada} às {horaFormatada}</td>
-                        <td>{a.tituloServico || a.titulo_servico}</td>
-                        <td>{a.nomePrestador || a.nome_prestador}</td>
+                        <td>{a.servico?.titulo}</td>
+                        <td>{a.prestador?.usuario?.nome_completo || a.prestador?.id_prestador}</td>
                         <td><span className={`status-badge ${(a.status || '').toLowerCase()}`}>{a.status}</span></td>
                       </tr>
                     );
