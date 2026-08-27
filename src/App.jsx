@@ -1,11 +1,31 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import DashboardLayout from './DashboardLayout';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = 'http://localhost:8000/api';
+
+const getAuthToken = () => (typeof window !== 'undefined' ? localStorage.getItem('access_token') : null);
+const getAuthHeaders = (extra = {}) => {
+  const token = getAuthToken();
+  const base = { 'Content-Type': 'application/json', ...extra };
+  return token ? { Authorization: `Bearer ${token}`, ...base } : base;
+};
+
+const authFetch = (path, options = {}) => {
+  const url = path.startsWith('http') ? path : `${API_BASE}${path.startsWith('/') ? '' : '/'}${path}`;
+  const opts = { ...options, headers: getAuthHeaders(options.headers || {}) };
+  return fetch(url, opts);
+};
 
 function App() {
   const [telaAtual, setTelaAtual] = useState('login');
-  const [usuarioLogado, setUsuarioLogado] = useState(null);
+  const [usuarioLogado, setUsuarioLogado] = useState(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem('usuario') : null;
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
   const [abaAtiva, setAbaAtiva] = useState('Agenda');
 
   const [formCadastro, setFormCadastro] = useState({ nome_completo: '', email: '', telefone: '', senha: '', tipo_conta: 'Prestador' });
@@ -47,55 +67,55 @@ function App() {
   // Funções de Carregamento de Dados
   const carregarServicos = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/servicos/${id}`);
+      const res = await authFetch(`/servicos/${id}`);
       const dados = await res.json();
       setServicos(Array.isArray(dados) ? dados : []);
-    } catch (e) {
-      console.error('Erro ao carregar serviços:', e);
+    } catch {
+      console.error('Erro ao carregar serviços:');
       setServicos([]);
     }
   };
 
   const carregarAgenda = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/agenda/${id}`);
+      const res = await authFetch(`/agenda/${id}`);
       const dados = await res.json();
       setHorariosPorDia(dados?.horariosPorDia && Array.isArray(dados.horariosPorDia) ? dados.horariosPorDia : []);
-    } catch (e) {
-      console.error('Erro ao carregar agenda:', e);
+    } catch {
+      console.error('Erro ao carregar agenda:');
       setHorariosPorDia([]);
     }
   };
 
   const carregarSolicitacoesRecebidas = async (prestadorId) => {
     try {
-      const res = await fetch(`${API_BASE}/agendamentos/prestador/${prestadorId}`);
+      const res = await authFetch(`/agendamentos/prestador/${prestadorId}`);
       const dados = await res.json();
       setSolicitacoesRecebidas(Array.isArray(dados) ? dados : []);
-    } catch (e) {
-      console.error('Erro ao carregar solicitações:', e);
+    } catch {
+      console.error('Erro ao carregar solicitações:');
       setSolicitacoesRecebidas([]);
     }
   };
 
   const carregarTodosServicos = async () => {
     try {
-      const res = await fetch(`${API_BASE}/servicos`);
+      const res = await authFetch('/servicos');
       const dados = await res.json();
       setTodosServicos(Array.isArray(dados) ? dados : []);
-    } catch (e) {
-      console.error('Erro ao carregar todos os serviços:', e);
+    } catch {
+      console.error('Erro ao carregar todos os serviços:');
       setTodosServicos([]);
     }
   };
 
   const carregarMeusAgendamentos = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/agendamentos/cliente/${id}`);
+      const res = await authFetch(`/agendamentos/cliente/${id}`);
       const dados = await res.json();
       setMeusAgendamentos(Array.isArray(dados) ? dados : []);
-    } catch (e) {
-      console.error('Erro ao carregar meus agendamentos:', e);
+    } catch {
+      console.error('Erro ao carregar meus agendamentos:');
       setMeusAgendamentos([]);
     }
   };
@@ -104,15 +124,16 @@ function App() {
   const handleCadastro = async (e) => {
     e.preventDefault();
     try {
+      const payload = { ...formCadastro, tipo_conta: (formCadastro.tipo_conta || '').toUpperCase() };
       const res = await fetch(`${API_BASE}/usuarios`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formCadastro)
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
       });
       const dados = await res.json();
       alert(dados?.mensagem || dados?.erro || 'Operação realizada.');
       if (res.ok) setTelaAtual('login');
-    } catch (e) {
+    } catch {
       alert('Erro no servidor.');
     }
   };
@@ -120,7 +141,7 @@ function App() {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${API_BASE}/login`, {
+      const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formLogin)
@@ -128,37 +149,44 @@ function App() {
       const dados = await res.json();
 
       if (res.ok) {
-        setUsuarioLogado(dados.usuario);
+        // store token for subsequent requests
+        if (dados.access_token) localStorage.setItem('access_token', dados.access_token);
+        // normalize id field (backend may return id_usuario)
+        const u = { ...(dados.usuario || {}) };
+        if (!u.id && u.id_usuario) u.id = u.id_usuario;
+        setUsuarioLogado(u);
+        try { localStorage.setItem('usuario', JSON.stringify(u)); } catch (err) { console.error('Failed to persist user', err); }
         setTelaAtual('dashboard');
 
-        if (dados.usuario.tipo_conta === 'Prestador') {
-          carregarServicos(dados.usuario.id);
-          carregarAgenda(dados.usuario.id);
-          carregarSolicitacoesRecebidas(dados.usuario.id);
+        if (u.tipo_conta === 'Prestador') {
+          carregarServicos(u.id);
+          carregarAgenda(u.id);
+          carregarSolicitacoesRecebidas(u.id);
         } else {
           carregarTodosServicos();
-          carregarMeusAgendamentos(dados.usuario.id);
+          carregarMeusAgendamentos(u.id);
         }
       } else {
         alert(dados?.mensagem || dados?.erro || 'Falha ao realizar login.');
       }
-    } catch (e) {
+    } catch {
       alert('Erro ao conectar com o servidor.');
     }
   };
 
   // Handlers Prestador
+  
   const handleAtualizarStatusAgendamento = async (id, novoStatus) => {
     try {
       const res = await fetch(`${API_BASE}/agendamentos/${id}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ status: novoStatus })
       });
       const dados = await res.json();
       alert(dados?.mensagem || dados?.erro || 'Status atualizado.');
       carregarSolicitacoesRecebidas(usuarioLogado.id);
-    } catch (e) {
+    } catch {
       alert('Erro ao atualizar status.');
     }
   };
@@ -174,7 +202,7 @@ function App() {
     try {
       const res = await fetch(`${API_BASE}/servicos`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           ...formServico,
           preco: precoConvertido,
@@ -189,16 +217,16 @@ function App() {
       } else {
         alert(dados?.mensagem || dados?.erro || 'Erro ao cadastrar serviço.');
       }
-    } catch (e) {
+    } catch {
       alert('Erro ao conectar com o servidor.');
     }
   };
 
   const handleDeletarServico = async (id) => {
     try {
-      await fetch(`${API_BASE}/servicos/${id}`, { method: 'DELETE' });
+      await fetch(`${API_BASE}/servicos/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       carregarServicos(usuarioLogado.id);
-    } catch (e) {
+    } catch {
       alert('Erro ao excluir serviço.');
     }
   };
@@ -208,13 +236,13 @@ function App() {
     try {
       const res = await fetch(`${API_BASE}/agenda`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ prestadorId: usuarioLogado.id, dia: diaSelecionado, horaInicio, horaFim })
       });
       const dados = await res.json();
       alert(dados?.mensagem || dados?.erro || 'Horário salvo.');
       carregarAgenda(usuarioLogado.id);
-    } catch (e) {
+    } catch {
       alert('Erro ao salvar horário.');
     }
   };
@@ -222,14 +250,14 @@ function App() {
   const handleRemoverDia = async (dia) => {
     if (!dia) return alert('Dia inválido para exclusão.');
     try {
-      const res = await fetch(`${API_BASE}/agenda/${usuarioLogado.id}/${encodeURIComponent(dia)}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/agenda/${usuarioLogado.id}/${encodeURIComponent(dia)}`, { method: 'DELETE', headers: getAuthHeaders() });
       const dados = await res.json();
       if (res.ok) {
         carregarAgenda(usuarioLogado.id);
       } else {
         alert(dados?.erro || dados?.mensagem || 'Erro ao remover dia da agenda.');
       }
-    } catch (e) {
+    } catch {
       alert('Erro ao remover dia da agenda.');
     }
   };
@@ -256,7 +284,7 @@ function App() {
     try {
       const res = await fetch(`${API_BASE}/agendamentos`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           clienteId,
           servicoId,
@@ -276,12 +304,23 @@ function App() {
       } else {
         alert(dados?.erro || dados?.mensagem || 'Erro ao processar solicitação.');
       }
-    } catch (e) {
+    } catch {
       alert('Erro ao conectar com o servidor.');
     }
   };
 
   // TELAS DE AUTENTICAÇÃO
+  const handleLogout = async () => {
+    try {
+      await authFetch('/auth/logout', { method: 'POST' });
+    } catch {
+      // ignore errors on logout
+    }
+    localStorage.removeItem('access_token');
+    setUsuarioLogado(null);
+    setTelaAtual('login');
+  };
+
   if (telaAtual === 'login') {
     return (
       <div style={{ maxWidth: '400px', margin: '80px auto', padding: '30px', background: '#fff', borderRadius: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
@@ -324,7 +363,7 @@ function App() {
           <h1 style={{ margin: 0, fontSize: '1.8rem' }}>Olá, {usuarioLogado?.nome_completo}</h1>
           <p style={{ margin: '4px 0 0 0', opacity: 0.9 }}>Tipo de conta: {usuarioLogado?.tipo_conta}</p>
         </div>
-        <button onClick={() => { setUsuarioLogado(null); setTelaAtual('login'); }} style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', color: '#fff', border: '1px solid rgba(255, 255, 255, 0.4)', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' }}>
+        <button onClick={handleLogout} style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', color: '#fff', border: '1px solid rgba(255, 255, 255, 0.4)', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' }}>
           Sair
         </button>
       </div>
