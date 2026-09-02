@@ -1,16 +1,64 @@
-# React + Vite
+# Agendamento Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend em React + Vite para autenticação, gestão de serviços, agenda do prestador e solicitações de agendamento.
 
-Currently, two official plugins are available:
+## Arquitetura
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+O projeto foi reorganizado para seguir a base descrita em [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md):
 
-## React Compiler
+```text
+src/
+├── core/
+│   ├── http/                # cliente HTTP, request helper e tratamento de erros
+│   ├── router/              # rotas públicas, protegidas e guards
+│   └── store/               # estado global de sessão/autenticação
+├── modules/
+│   ├── auth/                # login e cadastro
+│   ├── appointments/        # solicitações e histórico de agendamentos
+│   ├── dashboard/           # páginas por perfil
+│   ├── schedules/           # agenda do prestador
+│   └── services/            # catálogo e portfólio de serviços
+└── shared/
+	├── components/          # layout e componentes de UI reutilizáveis
+	└── utils/               # formatação e helpers sem domínio
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Requisitos
 
-## Expanding the ESLint configuration
+- Node.js 20+
+- npm 10+
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Variáveis de ambiente
+
+O cliente HTTP usa `VITE_API_BASE_URL`. Quando a variável não é informada, o projeto usa `http://localhost:8000/api`.
+
+Exemplo de `.env`:
+
+```bash
+VITE_API_BASE_URL=http://localhost:8000/api
+```
+
+## Comandos
+
+```bash
+npm install
+npm run dev
+npm run lint
+npm run build
+npm run preview
+```
+
+## Fluxo atual
+
+- `login` e `cadastro` ficam em rotas públicas;
+- `prestador` acessa o painel em `/app/prestador/:section`;
+- `cliente` acessa o painel em `/app/cliente/:section`;
+- chamadas HTTP são centralizadas em `core/http`;
+- sessão é persistida em `localStorage` por `core/store/auth-context.jsx`.
+
+## Próximos passos recomendados
+
+- migrar módulos para TypeScript;
+- adicionar testes de interface e hooks;
+- incluir aliases de import e `jsconfig.json`/`tsconfig.json` para ergonomia;
+- evoluir feedbacks de erro para notificações globais.

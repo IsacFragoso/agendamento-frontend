@@ -1,7 +1,6 @@
-import React from 'react';
 import './DashboardLayout.css';
 
-export default function DashboardLayout({ children, activeMenu = 'Agenda' }) {
+export default function DashboardLayout({ children, activeMenu = 'Agenda', onSelectMenu }) {
   const menuItems = [
     { name: 'Início', icon: '🎛️' },
     { name: 'Agenda', icon: '📅' },
@@ -18,6 +17,7 @@ export default function DashboardLayout({ children, activeMenu = 'Agenda' }) {
             <button
               key={item.name}
               className={`nav-item ${activeMenu === item.name ? 'active' : ''}`}
+              onClick={() => onSelectMenu?.(item.name)}
             >
               <span className="nav-icon">{item.icon}</span>
               <span className="nav-label">{item.name}</span>
