@@ -38,6 +38,13 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(loadStoredSession);
 
   useEffect(() => {
+    const clearSession = () => setSession({ token: null, user: null });
+    window.addEventListener('auth:unauthorized', clearSession);
+
+    return () => window.removeEventListener('auth:unauthorized', clearSession);
+  }, []);
+
+  useEffect(() => {
     if (session.token && session.user) {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
       return;
