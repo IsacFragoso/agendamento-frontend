@@ -1,0 +1,151 @@
+.image-adjust-backdrop {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(17, 24, 39, 0.56);
+}
+
+.image-adjust-dialog {
+  display: grid;
+  gap: 18px;
+  width: min(100%, 620px);
+  max-height: min(92vh, 820px);
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: 0 24px 70px rgba(17, 24, 39, 0.25);
+}
+
+.image-adjust-dialog__header,
+.image-adjust-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.image-adjust-dialog__header h2 {
+  margin-top: 5px;
+  font-size: 1.2rem;
+}
+
+.image-adjust-dialog__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--color-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.image-adjust-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.image-adjust-crop {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #111827;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.image-adjust-crop:active {
+  cursor: grabbing;
+}
+
+.image-adjust-crop img {
+  position: absolute;
+  max-width: none;
+  object-fit: cover;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  user-select: none;
+}
+
+.image-adjust-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.image-adjust-zoom {
+  display: grid;
+  grid-template-columns: auto minmax(80px, 1fr) 52px;
+  align-items: center;
+  gap: 14px;
+  color: var(--color-text);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.image-adjust-zoom input {
+  width: 100%;
+  accent-color: var(--color-primary);
+}
+
+.image-adjust-zoom output {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.image-adjust-actions {
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.image-adjust-actions .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 9px 14px;
+  border-radius: 8px;
+}
+
+.image-adjust-dialog button:focus-visible,
+.image-adjust-zoom input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+@media (max-width: 560px) {
+  .image-adjust-backdrop {
+    align-items: end;
+    padding: 10px;
+  }
+
+  .image-adjust-dialog {
+    gap: 14px;
+    max-height: 92vh;
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .image-adjust-crop--banner {
+    max-height: 30vh;
+  }
+}
