@@ -1,10 +1,10 @@
 # Frontend architecture
 
-Single-page app for the appointment-booking system (school project). The backend is a separate repository, `TODO: GitHub URL of agendamento-backend`: a NestJS REST API under `/api`.
+Single-page app for the appointment-booking system (school project). The backend is a separate repository, <https://github.com/IsacFragoso/agendamento-backend>: a NestJS REST API under `/api`.
 
 **Stack:** React 19, Vite 8, React Router 7, JavaScript/JSX (not TypeScript), plain CSS, `fetch`-based HTTP helpers, an auth context.
 
-> Placeholders marked `TODO` need facts from the repo. Describe what the code does today; if the code and this file disagree, the code wins and this file should be fixed.
+Code and package manifests are the source of truth; keep this file aligned with the current implementation.
 
 ```text
 Browser (React SPA)  ──fetch, JSON, Authorization: Bearer <JWT>──▶  NestJS API (/api)  ──▶  PostgreSQL
@@ -18,19 +18,23 @@ The SPA only talks to the API. It never touches the database, and it cannot enfo
 src/
 ├── core/      # app wiring: router, auth context, HTTP helpers
 ├── modules/   # one folder per feature (pages, hooks, services)
-│   └── TODO: auth/, appointments/, ...
+│   ├── auth/         # login, registration, account settings
+│   ├── appointments/ # appointment requests and status updates
+│   ├── dashboard/    # client/provider dashboards and provider portfolio
+│   ├── schedules/    # provider availability
+│   └── services/     # services, categories, and provider service state
 └── shared/    # reusable components and helpers with no feature logic
 ```
 
-Typical feature folder (`TODO: adjust to what the repo really has`):
+Small module example: `modules/schedules/` contains the endpoint service and stateful hook:
 
 ```text
-modules/<feature>/
-├── <Feature>Page.jsx      # composes the screen
-├── components/            # pieces used only by this feature
-├── hooks/                 # state, effects, data fetching
-└── services/              # API calls and API-to-UI mapping
+modules/schedules/
+├── hooks/useProviderSchedule.js
+└── services/schedules.service.js
 ```
+
+`ProviderDashboardPage.jsx` composes `useProviderSchedule`; the hook owns loading, form state, and save/remove operations; the service owns schedule endpoint paths and HTTP methods.
 
 ## 2. Data flow
 
@@ -44,7 +48,7 @@ Router → Page → Hook → Service → HTTP helper → API
 | Page | Composes the screen from components | Call `fetch` directly |
 | Hook | Owns state, loading/error handling and effects | Know URLs or response formats |
 | Service | Knows endpoints; maps API data to what the UI needs | Hold React state |
-| HTTP helper (`core`) | Sends requests, attaches the token, normalizes errors | Know about features |
+| HTTP helper (`core`) | Sends requests, attaches a supplied token, normalizes errors | Know about features |
 | Shared component | Renders generic UI | Contain feature or booking rules |
 
 ## 3. Dependency rules
@@ -60,9 +64,9 @@ modules  →  shared  →  core
 
 ## 4. Authentication
 
-- Login calls `TODO: endpoint`; the JWT is stored in `TODO: memory / localStorage / other`.
-- The auth context holds the current user and exposes `TODO: login, logout`.
-- The HTTP helper attaches `Authorization: Bearer <token>` to every request.
+- Login calls `POST /auth/login`; the response provides `access_token` and `usuario`.
+- The auth context exposes `token`, `user`, `isAuthenticated`, `login`, and `logout`. The session is persisted in `localStorage` under `agendamento-web/session`; logout clears the client-side session.
+- The HTTP helper attaches `Authorization: Bearer <token>` when a request is given a token.
 - `401` (missing, expired or revoked token): clear the session and redirect to login.
 - `403` (authenticated but not allowed): show a "not allowed" message; do not log the user out.
 - Hiding a button is only UX. The backend enforces permissions.
@@ -77,21 +81,22 @@ modules  →  shared  →  core
 
 ## 6. Dates and time zones
 
-The backend stores UTC. The UI shows times in `TODO: America/Sao_Paulo`, formatted explicitly. Never rely on the browser's default zone and never build dates from local-time strings.
+The backend stores appointment timestamps in UTC. The UI displays and converts appointment times in `America/Sao_Paulo` using `src/shared/utils/format.js`. Never rely on the browser's default zone or construct timestamps from local-time strings.
 
 ## 7. Configuration
 
-- API base URL: `TODO: e.g. VITE_API_URL, or a Vite dev proxy`.
+- API base URL: `VITE_API_BASE_URL`, defaulting to `http://localhost:8000/api`; the frontend has no Vite API proxy.
+- Vite serves from `/` in development and builds with `/agendamento-frontend/` as its base path in production.
 - Environment variables are read through `import.meta.env` and must start with `VITE_`. Never put secrets in them; everything in a Vite bundle is public.
 
 ## 8. Testing
 
-`TODO: describe the setup, or "no automated tests; changes are verified manually" and list the main flows to check (login, list appointments, book, cancel, session expiry).`
+Automated tests use Vitest with jsdom and run with `npm test`. The current suite covers route helpers, auth session expiry, date/time formatting, and provider-card mapping. Run `npm run lint` and `npm run build` as well.
 
 ## 9. Adding a feature (checklist)
 
 1. Confirm the endpoint's path, request body and response with the backend team or the backend repo.
-2. Create `modules/<feature>/` following the reference module (`TODO: which one`).
+2. Create `modules/<feature>/` following the small `modules/schedules/` example: endpoint calls in a service, request/UI state in a hook, and screen composition in a page or the owning page.
 3. Write the service (API calls), then the hook, then the page and components.
 4. Register the route in the router; protect it if it needs a session.
 5. Handle loading, error, empty and (for bookings) conflict states.
@@ -101,4 +106,5 @@ The backend stores UTC. The UI shows times in `TODO: America/Sao_Paulo`, formatt
 
 - No TypeScript: do not rename files to `.tsx` or add type-only tooling.
 - No UI framework, state-management library or API-client library.
-- No i18n or route/menu registries. `TODO: confirm.`
+- User-facing copy is Brazilian Portuguese (`pt-BR`); there is no i18n framework. Routes are defined in `core/router/paths.js` and wired in `core/router/AppRouter.jsx`.
+- Appointment status updates currently accept `PENDENTE`, `CONFIRMADO`, `CANCELADO`, or `CONCLUIDO` and are provider/admin operations. There is no appointment rescheduling endpoint or client cancellation action in the current API; do not invent those flows in the frontend.

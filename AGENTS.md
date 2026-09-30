@@ -2,11 +2,9 @@
 
 Rules for contributors and AI agents working in this repository. Run all commands from the repository root.
 
-> Placeholders marked `TODO` need facts from the repo. Replace or delete them before committing.
-
 ## Related repository
 
-The backend is a **separate repository**: `TODO: GitHub URL of agendamento-backend` (NestJS API under `/api`). You cannot read or edit it from here. Do not guess endpoint paths, field names or status codes: use the ones already used in the existing services, or ask. If a task needs a backend change, say so in your summary instead of working around it in the UI. `TODO: link or path to the API endpoint list, if one exists.`
+The backend is a **separate repository**: <https://github.com/IsacFragoso/agendamento-backend> (NestJS API under `/api`). Read its `AGENTS.md` and `ARCHITECTURE.md` before inspecting backend files. Do not guess endpoint paths, field names, or status codes: verify them in the backend controller, DTO, and service. If a task needs a backend change, say so in your summary; do not silently work around the API contract in the UI.
 
 ## Source of truth
 
@@ -32,13 +30,13 @@ Verify against `package.json`; these are the expected names.
 | Dev server | `npm run dev` |
 | Build | `npm run build` |
 | Lint | `npm run lint` |
-| Tests | `TODO: state the test runner, or "none configured"` |
+| Tests | `npm test` (Vitest with jsdom) |
 
 Before finishing, run lint and build (and tests, if configured).
 
 ## Environment
 
-- API base URL and other env vars: `TODO: e.g. VITE_API_URL, dev proxy settings`.
+- API base URL: `VITE_API_BASE_URL`; defaults to `http://localhost:8000/api`. There is no Vite API proxy. The Vite base path is `/` in development and `/agendamento-frontend/` in production builds.
 - Never commit `.env` files or secrets.
 
 ## Architecture
@@ -48,7 +46,7 @@ Before finishing, run lint and build (and tests, if configured).
 - Pages compose the screen, hooks own state and effects, services own HTTP calls and API-to-UI mapping. Shared components contain no domain rules.
 - Use the existing fetch helpers and auth context for all HTTP and session handling. Do not call `fetch` directly from pages or components.
 - Promote code to `shared` only when there is real reuse.
-- Use `TODO: a small, well-kept module` as the reference when adding a feature.
+- Use `src/modules/schedules/` as the small-module reference: `services/schedules.service.js` owns schedule endpoint calls, and `hooks/useProviderSchedule.js` owns loading, form state, save, and removal. `src/modules/dashboard/pages/ProviderDashboardPage.jsx` composes that hook into the UI. Keep API calls in services and async/UI state in hooks.
 
 ## UI behavior
 
@@ -57,18 +55,18 @@ Before finishing, run lint and build (and tests, if configured).
 - Distinguish `401` (session expired, redirect to login) from `403` (authenticated but not allowed). Never rely on the UI alone for permissions; the backend enforces them.
 - Validate form input before sending it, for UX only. The backend is the real validator; show its field errors.
 - Preserve basic accessibility: labels on inputs, keyboard access, meaningful button text.
-- Dates and times: the backend stores UTC. Show times in `TODO: America/Sao_Paulo`, format explicitly, and never rely on the browser's default zone or build dates from local-time strings.
-- User-facing strings: `TODO: language, and whether an i18n mechanism exists.`
+- Dates and times: appointment display and input conversion use `America/Sao_Paulo` through `src/shared/utils/format.js`. Format explicitly; never rely on the browser's default zone or build timestamps from local-time strings.
+- User-facing strings are in Brazilian Portuguese (`pt-BR`). There is no i18n framework; keep user-visible copy consistent with the existing Portuguese UI.
 
 ## Testing
 
-- `TODO: describe the test setup, or "no test framework is configured; do not add one without being asked. Verify manually and describe how in your summary."`
+- Automated tests use Vitest and jsdom; run them with `npm test`. Tests currently cover route helpers, auth session expiration, date/time formatting, and provider-card mapping. Run `npm run lint` and `npm run build` as well.
 - When an API contract is involved, confirm the call against the backend's DTOs rather than guessing field names.
 
 ## Booking behavior in the UI
 
 - The frontend may pre-check availability for UX, but the backend is the real guard against double booking. Always handle a `409` conflict response gracefully (message plus refreshed availability).
-- Cancellation and rescheduling rules: `TODO`. Show the backend's error message when an action is refused.
+- The appointment API accepts `PENDENTE`, `CONFIRMADO`, `CANCELADO`, and `CONCLUIDO` status values. Status updates are provider/admin operations; the current API has no appointment reschedule endpoint and no client cancellation action. Do not invent those flows in the UI. Show the backend's error message when an action is refused.
 
 ## Git and safety
 
@@ -77,7 +75,7 @@ Before finishing, run lint and build (and tests, if configured).
 - Never run migrations, seeds or destructive scripts against anything other than the local development database.
 - Never publish, deploy or change infrastructure.
 - Never commit `.env` files or secrets. Never log tokens, passwords or PII.
-- Commit message convention (if asked to write one): `TODO: e.g. Conventional Commits — feat:, fix:, refactor:, test:, docs:, chore:`.
+- Commit message convention (if asked): Conventional Commits prefixes such as `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, and `chore:`.
 
 ## Workflow
 
@@ -90,4 +88,4 @@ Before finishing, run lint and build (and tests, if configured).
 
 - Keep changes focused. No drive-by refactors, formatting sweeps or dependency bumps.
 - Do not add dependencies without a stated reason in the summary.
-- Language: `TODO: e.g. code identifiers and commit messages in English; user-facing strings in Brazilian Portuguese.` Keep API field names consistent with the existing ones.
+- Language: code identifiers and commit messages in English; user-facing strings in Brazilian Portuguese. Keep API field names consistent with the backend contract.
