@@ -260,10 +260,6 @@ export default function AccountSettingsPage() {
                 <h2>Segurança e credenciais</h2>
               </div>
             </div>
-            <label className="field">
-              <span>E-mail da conta</span>
-              <input type="email" value={user?.email || ''} readOnly />
-            </label>
             <form className="account-password-form" onSubmit={changePassword}>
               <label className="field">
                 <span>Senha atual</span>

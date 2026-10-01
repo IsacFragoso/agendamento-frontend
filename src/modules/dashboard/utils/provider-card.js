@@ -8,14 +8,42 @@ const FALLBACK_IMAGES = [
 ];
 
 export const buildProviderCard = (provider, index) => {
-  const services = Array.isArray(provider.servicos) ? provider.servicos : [];
+  const services = Array.isArray(provider.servicos)
+    ? provider.servicos
+    : provider.servico
+      ? [provider.servico]
+      : [];
   const primaryService = services[0] || null;
-  const lowestPriceService = services.reduce((lowest, service) => {
-    const price = Number(service.preco);
-    return Number.isFinite(price) && (lowest === null || price < Number(lowest.preco))
-      ? service
-      : lowest;
-  }, null);
+  // parse price values that may come as formatted strings (e.g. "R$ 1.234,56" or "50,00")
+  const parseNumericPrice = (value) => {
+    if (value === null || value === undefined) return null;
+    const raw = String(value).trim();
+    if (raw === '') return null;
+    // remove common currency symbols and whitespace
+    let cleaned = raw.replace(/[^0-9,.-]/g, '');
+    // if contains both dot and comma, assume dot is thousands separator and comma is decimal
+    if (cleaned.indexOf('.') !== -1 && cleaned.indexOf(',') !== -1) {
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    } else if (cleaned.indexOf(',') !== -1) {
+      // only comma present: treat as decimal separator
+      cleaned = cleaned.replace(',', '.');
+    }
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : null;
+  };
+  // compute a robust numeric lowest price across all services and pick the corresponding service
+  const servicePricePairs = services.map((s) => ({ service: s, price: parseNumericPrice(s.preco) }));
+  const pricedPairs = servicePricePairs.filter((p) => p.price !== null && p.price !== undefined);
+  let lowestNumericPrice = null;
+  let lowestPriceService = null;
+  if (pricedPairs.length > 0) {
+    lowestNumericPrice = Math.min(...pricedPairs.map((p) => p.price));
+    // pick the first service whose parsed price matches the lowest (use tolerance for floats)
+    const EPS = 1e-9;
+    const pair = pricedPairs.find((p) => Math.abs(p.price - lowestNumericPrice) < EPS);
+    lowestPriceService = pair ? pair.service : pricedPairs[0].service;
+  }
+  // bookingService: prefer the lowest priced service, otherwise fall back to primary
   const bookingService = lowestPriceService || primaryService;
   const categoryIds = [...new Set(
     services
@@ -29,9 +57,20 @@ export const buildProviderCard = (provider, index) => {
     nome: provider.nome_completo,
     categoria: bookingService?.categoria?.nome || 'Profissional',
     categoryIds,
+    servicesCount: services.length,
     distanciaKm: provider.distancia_km,
     descricao: provider.perfil?.bio || bookingService?.descricao || '',
-    preco: lowestPriceService ? Number(lowestPriceService.preco) : null,
+    // prefer the numeric lowest price across all services; fallback to bookingService price when present
+    preco: (() => {
+      if (lowestNumericPrice !== null) return lowestNumericPrice;
+      if (!bookingService) {
+        // fallback to top-level provider.preco if present
+        const top = parseNumericPrice(provider.preco);
+        return top !== null ? top : null;
+      }
+      const parsed = parseNumericPrice(bookingService.preco);
+      return parsed !== null ? parsed : null;
+    })(),
     image: provider.perfil?.imagem_banner || provider.perfil?.foto_perfil || FALLBACK_IMAGES[index % FALLBACK_IMAGES.length],
     servico: bookingService,
   };

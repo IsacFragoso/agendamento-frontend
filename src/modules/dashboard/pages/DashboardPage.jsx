@@ -154,7 +154,7 @@ export default function DashboardPage() {
                 <div>
                   <span className="service-category">{provider.categoria}</span>
                   <strong>{provider.nome}</strong>
-                  <p>{provider.descricao}</p>
+                  <p>{provider.categoria || '\u00A0'}</p>
                   {provider.distanciaKm !== null && provider.distanciaKm !== undefined ? (
                     <p>{provider.distanciaKm.toFixed(1)} km de distância</p>
                   ) : null}
