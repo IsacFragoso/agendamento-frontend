@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { getErrorMessage } from '../../../core/http/http-error';
 import { ROUTE_PATHS, getDashboardPathForAccountType } from '../../../core/router/paths';
 import { useAuth } from '../../../core/store/use-auth';
@@ -7,6 +7,7 @@ import { loginUser, registerUser } from '../services/auth.service';
 
 export function useAuthActions() {
   const navigate = useNavigate();
+  const location = useLocation();
   const auth = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -18,7 +19,9 @@ export function useAuthActions() {
     try {
       const payload = await loginUser(values);
       auth.login({ token: payload.access_token, user: payload.usuario });
-      navigate(getDashboardPathForAccountType(payload?.usuario?.tipo_conta), { replace: true });
+      const returnTo = location.state?.from;
+      const destination = typeof returnTo === 'string' ? returnTo : returnTo?.pathname;
+      navigate(destination || getDashboardPathForAccountType(payload?.usuario?.tipo_conta), { replace: true });
       return true;
     } catch (error) {
       setErrorMessage(getErrorMessage(error, 'Falha ao realizar login.'));
@@ -38,6 +41,7 @@ export function useAuthActions() {
         replace: true,
         state: {
           message: payload?.mensagem || 'Conta criada com sucesso. Faça login para continuar.',
+          from: location.state?.from,
         },
       });
       return true;

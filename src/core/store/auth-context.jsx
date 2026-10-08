@@ -56,6 +56,12 @@ export function AuthProvider({ children }) {
         user: normalizeUser(nextSession?.user || nextSession?.usuario),
       });
     },
+    updateUser: (updatedUser) => {
+      setSession((current) => ({
+        ...current,
+        user: normalizeUser({ ...current.user, ...updatedUser }),
+      }));
+    },
     logout: () => setSession({ token: null, user: null }),
   }), [session]);
 

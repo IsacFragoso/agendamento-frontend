@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { ROUTE_PATHS } from '../../../core/router/paths';
+import { useLocation } from 'react-router-dom';
 import { useAuthActions } from '../hooks/useAuthActions';
 
 const INITIAL_LOGIN_FORM = {

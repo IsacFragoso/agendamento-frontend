@@ -10,6 +10,12 @@ export const createService = (payload, token) => requestHelper('/servicos', {
   body: JSON.stringify(payload),
 });
 
+export const updateService = (serviceId, payload, token) => requestHelper(`/servicos/${serviceId}`, {
+  method: 'PATCH',
+  token,
+  body: JSON.stringify(payload),
+});
+
 export const deleteService = (serviceId, token) => requestHelper(`/servicos/${serviceId}`, {
   method: 'DELETE',
   token,

@@ -1,0 +1,30 @@
+.account-settings {
+  width: min(100%, 1120px);
+  margin: 0 auto;
+  color: #242438;
+}
+
+.account-settings__heading { margin-bottom: 22px; }
+.account-settings__heading h1 { margin: 6px 0; font-size: 1.8rem; font-weight: 850; }
+.account-settings__heading > div > p:last-child { color: #77798a; font-size: 0.88rem; }
+.account-settings__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; }
+.account-settings__panel { display: grid; gap: 15px; padding: 22px; border: 1px solid #e8e9ef; border-radius: 8px; background: #fff; }
+.account-settings__panel-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 3px; }
+.account-settings__icon { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border-radius: 8px; color: #4f48d8; background: #efeeff; font-size: 1.2rem; font-weight: 800; }
+.account-settings__icon--mint { color: #1a8069; background: #e3f4ef; }
+.account-settings__panel-heading h2 { font-size: 0.98rem; font-weight: 800; }
+.account-settings__panel-heading p { margin-top: 3px; color: #77798a; font-size: 0.78rem; }
+.account-settings .field { display: grid; gap: 6px; }
+.account-settings .field > span { color: #56586b; font-size: 0.78rem; font-weight: 700; }
+.account-settings .field input { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid #dedfe8; border-radius: 5px; background: #fff; color: #292a3d; }
+.account-settings .field input:focus { border-color: #645bdd; outline: 3px solid rgba(100, 91, 221, 0.12); }
+.account-settings .field input[readonly] { color: #77798a; background: #f7f8fb; }
+.account-settings .field small { color: #858697; font-size: 0.72rem; }
+.account-settings__danger { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 19px 22px; border: 1px solid #efc8c8; border-radius: 8px; background: #fffafa; }
+.account-settings__danger h2 { color: #a63a43; font-size: 0.94rem; }
+.account-settings__danger p { max-width: 580px; margin-top: 5px; color: #77798a; font-size: 0.78rem; line-height: 1.5; }
+
+@media (max-width: 760px) {
+  .account-settings__grid { grid-template-columns: 1fr; }
+  .account-settings__danger { grid-column: auto; align-items: flex-start; flex-direction: column; }
+}

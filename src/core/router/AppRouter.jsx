@@ -6,6 +6,9 @@ import LoginPage from '../../modules/auth/pages/LoginPage';
 import RegisterPage from '../../modules/auth/pages/RegisterPage';
 import ProviderDashboardPage from '../../modules/dashboard/pages/ProviderDashboardPage';
 import ClientDashboardPage from '../../modules/dashboard/pages/ClientDashboardPage';
+import MarketplacePage from '../../modules/providers/pages/MarketplacePage';
+import ProviderProfilePage from '../../modules/providers/pages/ProviderProfilePage';
+import BookingPage from '../../modules/providers/pages/BookingPage';
 
 function RootRedirect() {
   const { isAuthenticated, user } = useAuth();
@@ -14,7 +17,7 @@ function RootRedirect() {
     return <Navigate to={getDashboardPathForAccountType(user?.tipo_conta)} replace />;
   }
 
-  return <Navigate to={ROUTE_PATHS.login} replace />;
+  return <Navigate to={ROUTE_PATHS.marketplace} replace />;
 }
 
 function AppRedirect() {
@@ -24,9 +27,12 @@ function AppRedirect() {
 
 export function AppRouter() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
       <Routes>
         <Route path={ROUTE_PATHS.root} element={<RootRedirect />} />
+        <Route path={ROUTE_PATHS.marketplace} element={<MarketplacePage />} />
+        <Route path={`${ROUTE_PATHS.providers}/:providerId`} element={<ProviderProfilePage />} />
+        <Route path={`${ROUTE_PATHS.providers}/:providerId/agendar/:serviceId`} element={<BookingPage />} />
 
         <Route element={<PublicOnlyRoute />}>
           <Route path={ROUTE_PATHS.login} element={<LoginPage />} />
