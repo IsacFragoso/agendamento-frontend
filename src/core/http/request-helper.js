@@ -34,6 +34,10 @@ export async function requestHelper(path, options = {}) {
   const response = await apiClient(path, options);
   const payload = await parseResponseBody(response);
 
+  if (response.status === 401 && options.token) {
+    window.dispatchEvent(new Event('auth:unauthorized'));
+  }
+
   if (!response.ok) {
     throw new HttpError({
       status: response.status,

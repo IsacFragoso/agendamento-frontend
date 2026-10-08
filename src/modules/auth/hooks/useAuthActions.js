@@ -11,10 +11,12 @@ export function useAuthActions() {
   const auth = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [errorPayload, setErrorPayload] = useState(null);
 
   const submitLogin = async (values) => {
     setIsSubmitting(true);
     setErrorMessage('');
+    setErrorPayload(null);
 
     try {
       const payload = await loginUser(values);
@@ -34,6 +36,7 @@ export function useAuthActions() {
   const submitRegister = async (values) => {
     setIsSubmitting(true);
     setErrorMessage('');
+    setErrorPayload(null);
 
     try {
       const payload = await registerUser(values);
@@ -44,10 +47,11 @@ export function useAuthActions() {
           from: location.state?.from,
         },
       });
-      return true;
+      return { succeeded: true };
     } catch (error) {
+      setErrorPayload(error?.payload || null);
       setErrorMessage(getErrorMessage(error, 'Não foi possível criar a conta.'));
-      return false;
+      return { succeeded: false, errorPayload: error?.payload || null };
     } finally {
       setIsSubmitting(false);
     }
@@ -55,6 +59,7 @@ export function useAuthActions() {
 
   return {
     errorMessage,
+    errorPayload,
     isSubmitting,
     submitLogin,
     submitRegister,

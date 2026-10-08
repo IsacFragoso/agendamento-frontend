@@ -1,27 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getErrorMessage } from '../../../core/http/http-error';
-import { ROUTE_PATHS, getClientPath, getProviderPath } from '../../../core/router/paths';
+import { ROUTE_PATHS } from '../../../core/router/paths';
 import { useAuth } from '../../../core/store/use-auth';
 import { listCategories } from '../../services/services/services.service';
 import { listPublicProviders } from '../services/providers.service';
-import AppLayout from '../../../shared/components/layouts/AppLayout';
 import './marketplace.css';
-
-const CLIENT_MENU_ITEMS = [
-  { label: 'Visão geral', icon: '⌂', to: getClientPath('agenda') },
-  { label: 'Agendamentos', icon: '▦', to: getClientPath('agendamentos') },
-  { label: 'Histórico', icon: '↺', to: getClientPath('historico') },
-  { label: 'Explorar', icon: '⌕', to: ROUTE_PATHS.marketplace },
-  { label: 'Configurações', icon: '⚙', to: getClientPath('perfil') },
-];
-
-const PROVIDER_MENU_ITEMS = [
-  { label: 'Agenda', icon: '▦', to: getProviderPath('agenda') },
-  { label: 'Portfólio', icon: '▤', to: getProviderPath('portfolio') },
-  { label: 'Histórico', icon: '↺', to: getProviderPath('historico') },
-  { label: 'Configurações', icon: '⚙', to: getProviderPath('perfil') },
-];
 
 const normalize = (value) => String(value || '')
   .normalize('NFD')
@@ -90,18 +74,13 @@ export default function MarketplacePage() {
     });
   }, [selectedCategory, services, submittedSearch]);
 
-  const menuItems = String(user?.tipo_conta).toUpperCase() === 'PRESTADOR'
-    ? PROVIDER_MENU_ITEMS
-    : CLIENT_MENU_ITEMS;
-
   const openBooking = (providerId, serviceId) => {
     const path = `${ROUTE_PATHS.providers}/${providerId}/agendar/${serviceId}`;
     navigate(path);
   };
 
   return (
-    <AppLayout menuItems={isAuthenticated ? menuItems : []}>
-      <main className="marketplace-page">
+    <main className="marketplace-page">
         <header className="marketplace-topbar">
           <Link className="marketplace-brand" to={ROUTE_PATHS.marketplace} aria-label="SAPNE, início">
             <span className="marketplace-brand__mark">✦</span>
@@ -231,7 +210,6 @@ export default function MarketplacePage() {
             })}
           </div>
         </section>
-      </main>
-    </AppLayout>
+    </main>
   );
 }

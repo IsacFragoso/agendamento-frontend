@@ -3,7 +3,6 @@ import { Link, useParams } from 'react-router-dom';
 import { getErrorMessage } from '../../../core/http/http-error';
 import { ROUTE_PATHS } from '../../../core/router/paths';
 import { useAuth } from '../../../core/store/use-auth';
-import AppLayout from '../../../shared/components/layouts/AppLayout';
 import { getPublicProvider, listProviderSchedule } from '../services/providers.service';
 import './marketplace.css';
 
@@ -39,8 +38,7 @@ export default function ProviderProfilePage() {
   }, [providerId]);
 
   return (
-    <AppLayout menuItems={[]}>
-      <main className="provider-profile-page">
+    <main className="provider-profile-page">
         <Link className="profile-back-link" to={ROUTE_PATHS.marketplace}>← Voltar para os profissionais</Link>
         {isLoading ? <p className="marketplace-state">Carregando perfil...</p> : null}
         {errorMessage ? <p className="feedback feedback--danger">{errorMessage}</p> : null}
@@ -129,7 +127,6 @@ export default function ProviderProfilePage() {
             </div>
           </>
         ) : null}
-      </main>
-    </AppLayout>
+    </main>
   );
 }

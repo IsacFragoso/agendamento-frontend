@@ -4,7 +4,6 @@ import { getErrorMessage } from '../../../core/http/http-error';
 import { ROUTE_PATHS, getClientPath, getDashboardPathForAccountType } from '../../../core/router/paths';
 import { useAuth } from '../../../core/store/use-auth';
 import { createAppointment } from '../../appointments/services/appointments.service';
-import AppLayout from '../../../shared/components/layouts/AppLayout';
 import {
   getProviderAvailability,
   getPublicProvider,
@@ -137,19 +136,16 @@ export default function BookingPage() {
 
   if (isAuthenticated && String(user?.tipo_conta).toUpperCase() !== 'CLIENTE') {
     return (
-      <AppLayout menuItems={[]}>
-        <section className="booking-message">
+      <section className="booking-message">
           <h1>Agendamento para clientes</h1>
           <p>Esta conta não pode solicitar um horário como cliente.</p>
           <Link className="button button--primary" to={getDashboardPathForAccountType(user?.tipo_conta)}>Ir para meu painel</Link>
-        </section>
-      </AppLayout>
+      </section>
     );
   }
 
   return (
-    <AppLayout menuItems={[]}>
-      <main className="booking-page">
+    <main className="booking-page">
         <Link className="profile-back-link" to={`${ROUTE_PATHS.providers}/${providerId}`}>← Voltar ao perfil</Link>
         {isLoading ? <p className="marketplace-state">Carregando disponibilidade...</p> : null}
         {errorMessage && !service ? <p className="feedback feedback--danger">{errorMessage}</p> : null}
@@ -220,7 +216,6 @@ export default function BookingPage() {
             </div>
           </>
         ) : null}
-      </main>
-    </AppLayout>
+    </main>
   );
 }

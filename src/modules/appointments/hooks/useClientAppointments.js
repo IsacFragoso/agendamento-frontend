@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getErrorMessage } from '../../../core/http/http-error';
-import { calculateAppointmentEnd } from '../../../shared/utils/format';
+import { appointmentDateTimeToIso, calculateAppointmentEnd } from '../../../shared/utils/format';
 import { createAppointment, listAppointments } from '../services/appointments.service';
 
 export function useClientAppointments({ clientId, token }) {
@@ -64,7 +64,7 @@ export function useClientAppointments({ clientId, token }) {
       await createAppointment({
         id_cliente: normalizedClientId,
         id_servico: normalizedServiceId,
-        data_hora_inicio: new Date(`${date}T${time}:00`).toISOString(),
+        data_hora_inicio: appointmentDateTimeToIso(date, time),
         data_hora_fim: calculateAppointmentEnd(date, time, service.duracao_padrao),
       }, token);
 

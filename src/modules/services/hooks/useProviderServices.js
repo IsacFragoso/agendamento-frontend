@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { getErrorMessage } from '../../../core/http/http-error';
 import {
   createService,
-  deleteService,
   listCategories,
   listProviderServices,
   updateService,
@@ -16,6 +15,8 @@ const INITIAL_FORM = {
   id_categoria: '',
 };
 
+const getServiceId = (service) => service.id_servico || service.id;
+
 export function useProviderServices({ providerId, token }) {
   const [services, setServices] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -27,19 +28,15 @@ export function useProviderServices({ providerId, token }) {
   const [editingServiceId, setEditingServiceId] = useState(null);
 
   const loadData = useCallback(async () => {
-    if (!providerId) {
-      return;
-    }
+    if (!providerId) return;
 
     setIsLoading(true);
     setErrorMessage('');
-
     try {
       const [servicePayload, categoryPayload] = await Promise.all([
         listProviderServices(providerId),
         listCategories(),
       ]);
-
       setServices(Array.isArray(servicePayload) ? servicePayload : []);
       setCategories(Array.isArray(categoryPayload) ? categoryPayload : []);
     } catch (error) {
@@ -52,18 +49,43 @@ export function useProviderServices({ providerId, token }) {
   }, [providerId]);
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void loadData();
-    }, 0);
-
+    const timeoutId = window.setTimeout(() => void loadData(), 0);
     return () => window.clearTimeout(timeoutId);
   }, [loadData]);
 
   const updateField = (fieldName, value) => {
-    setFormValues((current) => ({
-      ...current,
-      [fieldName]: value,
-    }));
+    setFormValues((current) => ({ ...current, [fieldName]: value }));
+  };
+
+  const updateServiceRecord = async (serviceId, payload) => {
+    const previousService = services.find((service) => getServiceId(service) === serviceId);
+    if (!previousService) {
+      return { succeeded: false, errorMessage: 'Não foi possível encontrar esse serviço.' };
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage('');
+    setFeedbackMessage('');
+    setServices((current) => current.map((service) => (
+      getServiceId(service) === serviceId ? { ...service, ...payload } : service
+    )));
+
+    try {
+      const updatedService = await updateService(serviceId, payload, token);
+      setServices((current) => current.map((service) => (
+        getServiceId(service) === serviceId ? { ...service, ...updatedService } : service
+      )));
+      return { succeeded: true };
+    } catch (error) {
+      const message = getErrorMessage(error, 'Não foi possível atualizar o serviço.');
+      setServices((current) => current.map((service) => (
+        getServiceId(service) === serviceId ? previousService : service
+      )));
+      setErrorMessage(message);
+      return { succeeded: false, errorMessage: message };
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const submitService = async (event) => {
@@ -76,67 +98,54 @@ export function useProviderServices({ providerId, token }) {
       setErrorMessage('Informe um preço válido.');
       return false;
     }
-
     if (Number.isNaN(duration) || Number.isNaN(categoryId)) {
       setErrorMessage('Preencha duração e categoria corretamente.');
       return false;
     }
 
-    setIsSubmitting(true);
     setErrorMessage('');
     setFeedbackMessage('');
+    const servicePayload = {
+      titulo: formValues.titulo.trim(),
+      descricao: formValues.descricao.trim(),
+      preco: price,
+      duracao_padrao: duration,
+      id_categoria: categoryId,
+    };
 
-    try {
-      const servicePayload = {
-        titulo: formValues.titulo,
-        descricao: formValues.descricao,
-        preco: price,
-        duracao_padrao: duration,
-        id_categoria: categoryId,
-      };
-
-      if (editingServiceId) {
-        await updateService(editingServiceId, servicePayload, token);
-      } else {
+    if (editingServiceId) {
+      const result = await updateServiceRecord(editingServiceId, servicePayload);
+      if (!result.succeeded) return false;
+    } else {
+      setIsSubmitting(true);
+      try {
         await createService({
           ...servicePayload,
           id_prestador: Number.parseInt(providerId, 10),
         }, token);
+        await loadData();
+      } catch (error) {
+        setErrorMessage(getErrorMessage(error, 'Não foi possível cadastrar o serviço.'));
+        return false;
+      } finally {
+        setIsSubmitting(false);
       }
-
-      setFormValues(INITIAL_FORM);
-      setEditingServiceId(null);
-      setFeedbackMessage(editingServiceId ? 'Serviço atualizado com sucesso.' : 'Serviço cadastrado com sucesso.');
-      await loadData();
-      return true;
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error, 'Não foi possível cadastrar o serviço.'));
-      return false;
-    } finally {
-      setIsSubmitting(false);
     }
+
+    setFormValues(INITIAL_FORM);
+    setEditingServiceId(null);
+    setFeedbackMessage(editingServiceId ? 'Serviço atualizado com sucesso.' : 'Serviço cadastrado com sucesso.');
+    return true;
   };
 
   const removeService = async (serviceId) => {
-    setIsSubmitting(true);
-    setErrorMessage('');
-    setFeedbackMessage('');
-
-    try {
-      await deleteService(serviceId, token);
-      setFeedbackMessage('Serviço arquivado. Agendamentos existentes foram preservados.');
-      await loadData();
-      return true;
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error, 'Não foi possível remover o serviço.'));
-      return false;
-    } finally {
-      setIsSubmitting(false);
-    }
+    const result = await updateServiceRecord(serviceId, { ativo: false });
+    if (result.succeeded) setFeedbackMessage('Serviço arquivado. Agendamentos existentes foram preservados.');
+    return result.succeeded;
   };
 
   const editService = (service) => {
-    setEditingServiceId(service.id_servico || service.id);
+    setEditingServiceId(getServiceId(service));
     setFormValues({
       titulo: service.titulo || '',
       descricao: service.descricao || '',
@@ -147,19 +156,9 @@ export function useProviderServices({ providerId, token }) {
   };
 
   const toggleService = async (service) => {
-    setIsSubmitting(true);
-    setErrorMessage('');
-    setFeedbackMessage('');
-
-    try {
-      await updateService(service.id_servico || service.id, { ativo: !service.ativo }, token);
-      setFeedbackMessage(service.ativo ? 'Serviço pausado.' : 'Serviço publicado.');
-      await loadData();
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error, 'Não foi possível atualizar o serviço.'));
-    } finally {
-      setIsSubmitting(false);
-    }
+    const result = await updateServiceRecord(getServiceId(service), { ativo: !service.ativo });
+    if (result.succeeded) setFeedbackMessage(service.ativo ? 'Serviço pausado.' : 'Serviço publicado.');
+    return result.succeeded;
   };
 
   const cancelEditing = () => {
@@ -182,6 +181,7 @@ export function useProviderServices({ providerId, token }) {
     toggleService,
     cancelEditing,
     submitService,
+    updateServiceRecord,
     updateField,
   };
 }
