@@ -2,6 +2,10 @@
   margin-bottom: 18px;
 }
 
+.portfolio-banner-panel .portfolio-section-heading {
+  margin-bottom: 14px;
+}
+
 .portfolio-banner-button {
   position: relative;
   display: inline-flex;
@@ -116,6 +120,14 @@
 
 .portfolio-toast--success > svg {
   color: var(--color-success);
+}
+
+.portfolio-toast--warning {
+  border-left-color: var(--color-warning);
+}
+
+.portfolio-toast--warning > svg {
+  color: var(--color-warning);
 }
 
 .portfolio-toast--error {
