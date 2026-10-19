@@ -5,8 +5,8 @@ import { ROUTE_PATHS, getDashboardPathForAccountType, getClientPath, getProvider
 import LoginPage from '../../modules/auth/pages/LoginPage';
 import RegisterPage from '../../modules/auth/pages/RegisterPage';
 import AccountSettingsPage from '../../modules/auth/pages/AccountSettingsPage';
+import ProviderOnboardingPage from '../../modules/auth/pages/ProviderOnboardingPage';
 import UnsupportedAccountPage from '../../modules/auth/pages/UnsupportedAccountPage';
-import DashboardPage from '../../modules/dashboard/pages/DashboardPage';
 import ProviderDashboardPage from '../../modules/dashboard/pages/ProviderDashboardPage';
 import ProviderPortfolioPage from '../../modules/dashboard/pages/ProviderPortfolioPage';
 import ClientDashboardPage from '../../modules/dashboard/pages/ClientDashboardPage';
@@ -14,6 +14,7 @@ import MarketplacePage from '../../modules/providers/pages/MarketplacePage';
 import ProviderProfilePage from '../../modules/providers/pages/ProviderProfilePage';
 import BookingPage from '../../modules/providers/pages/BookingPage';
 import AppLayout from '../../shared/components/layouts/AppLayout';
+import PublicLayout from '../../shared/components/layouts/PublicLayout';
 
 function RootRedirect() {
   const { isAuthenticated, user } = useAuth();
@@ -27,7 +28,9 @@ function AppRedirect() {
 
 function RoleDashboardPage() {
   const { user } = useAuth();
-  return user?.tipo_conta === 'PRESTADOR' ? <ProviderDashboardPage /> : <DashboardPage />;
+  return user?.tipo_conta === 'PRESTADOR'
+    ? <ProviderDashboardPage />
+    : <Navigate to={getClientPath('agendamentos')} replace />;
 }
 
 export function AppRouter() {
@@ -35,9 +38,11 @@ export function AppRouter() {
     <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
       <Routes>
         <Route path={ROUTE_PATHS.root} element={<RootRedirect />} />
-        <Route path={ROUTE_PATHS.marketplace} element={<MarketplacePage />} />
-        <Route path={`${ROUTE_PATHS.providers}/:providerId`} element={<ProviderProfilePage />} />
-        <Route path={`${ROUTE_PATHS.providers}/:providerId/agendar/:serviceId`} element={<BookingPage />} />
+        <Route element={<PublicLayout />}>
+          <Route path={ROUTE_PATHS.marketplace} element={<MarketplacePage />} />
+          <Route path={ROUTE_PATHS.providerProfile} element={<ProviderProfilePage />} />
+          <Route path={ROUTE_PATHS.providerBooking} element={<BookingPage />} />
+        </Route>
 
         <Route element={<PublicOnlyRoute />}>
           <Route path={ROUTE_PATHS.login} element={<LoginPage />} />
@@ -61,6 +66,8 @@ export function AppRouter() {
 
               <Route element={<RouteGuard allowedRoles={['CLIENTE']} />}>
                 <Route path={ROUTE_PATHS.client} element={<Navigate to={getClientPath()} replace />} />
+                <Route path={getClientPath('agenda')} element={<Navigate to={getClientPath('agendamentos')} replace />} />
+                <Route path={ROUTE_PATHS.providerOnboarding} element={<ProviderOnboardingPage />} />
                 <Route path={`${ROUTE_PATHS.client}/:section`} element={<ClientDashboardPage />} />
               </Route>
             </Route>

@@ -46,6 +46,7 @@ Before finishing, run lint and build (and tests, if configured).
 - Pages compose the screen, hooks own state and effects, services own HTTP calls and API-to-UI mapping. Shared components contain no domain rules.
 - Use the existing fetch helpers and auth context for all HTTP and session handling. Do not call `fetch` directly from pages or components.
 - Promote code to `shared` only when there is real reuse.
+- Routing: never hand-build URLs in pages or components. Use `ROUTE_PATHS` and the helpers in `src/core/router/paths.js` (add a helper for any new parameterised route). Public pages go under `PublicLayout`, private pages under `/app/...` in `AppLayout`. Build static asset URLs from `import.meta.env.BASE_URL`. Details: `ARCHITECTURE.md` section 9.
 - Use `src/modules/schedules/` as the small-module reference: `services/schedules.service.js` owns schedule endpoint calls, and `hooks/useProviderSchedule.js` owns loading, form state, save, and removal. `src/modules/dashboard/pages/ProviderDashboardPage.jsx` composes that hook into the UI. Keep API calls in services and async/UI state in hooks.
 
 ## UI behavior

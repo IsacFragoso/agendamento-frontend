@@ -2,6 +2,10 @@
   margin-bottom: 18px;
 }
 
+.portfolio-banner-panel .portfolio-section-heading {
+  margin-bottom: 16px;
+}
+
 .portfolio-banner-button {
   position: relative;
   display: inline-flex;
@@ -188,7 +192,7 @@
   width: 100%;
   border: 1px solid var(--color-border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .portfolio-service-table {
@@ -246,7 +250,7 @@
   padding: 3px;
   border: 0;
   border-radius: 999px;
-  background: #c7cdd6;
+  background: var(--color-border);
   transition: background-color 0.15s ease;
 }
 
@@ -292,7 +296,7 @@
   background: transparent;
   color: var(--color-primary);
   font: inherit;
-  font-size: 0.8rem;
+  font-size: var(--font-size-button-compact);
   font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
@@ -323,13 +327,53 @@
   min-height: 40px;
   padding: 8px 13px;
   border-radius: 8px;
-  font-size: 0.84rem;
+  font-size: var(--font-size-button);
+}
+
+.portfolio-add-button {
+  margin-bottom: 14px;
+}
+
+.portfolio-add-form {
+  margin-bottom: 16px;
+}
+
+.portfolio-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 14px;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.portfolio-pagination button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  font-size: var(--font-size-button-compact);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.portfolio-pagination button:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.portfolio-pagination button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .portfolio-add-form,
 .portfolio-form {
   display: grid;
-  gap: 14px;
+  gap: var(--space-4);
 }
 
 .portfolio-add-form {
@@ -413,7 +457,7 @@
   border: 0;
   border-radius: 7px;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-primary-contrast);
   font: inherit;
   font-size: 0.78rem;
   font-weight: 700;
@@ -426,50 +470,50 @@
   inset: 0;
   display: grid;
   place-items: center;
-  padding: 20px;
-  background: rgba(17, 24, 39, 0.45);
+  padding: var(--space-5);
+  background: var(--color-overlay);
 }
 
 .portfolio-dialog {
   display: grid;
-  gap: 18px;
+  gap: var(--dialog-gap);
   width: min(100%, 540px);
   max-height: min(90vh, 760px);
   overflow: auto;
-  padding: 22px;
+  padding: var(--dialog-padding);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--color-surface);
-  box-shadow: 0 20px 60px rgba(17, 24, 39, 0.2);
+  box-shadow: var(--shadow-dialog);
 }
 
 .portfolio-dialog-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .portfolio-dialog-heading h2 {
-  font-size: 1.2rem;
+  font-size: var(--font-size-xl);
 }
 
 .portfolio-icon-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: var(--control-height-compact);
+  height: var(--control-height-compact);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: #fff;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
   color: var(--color-text-muted);
 }
 
 .portfolio-dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .portfolio-dialog-actions .button,
@@ -477,15 +521,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  min-height: 40px;
-  padding: 8px 12px;
-  border-radius: 8px;
+  gap: var(--space-1);
+  min-height: var(--control-height-standard);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
 }
 
 .portfolio-details {
   display: grid;
-  gap: 14px;
+  gap: var(--space-4);
   margin: 0;
 }
 

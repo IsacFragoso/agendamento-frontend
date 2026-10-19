@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Camera, Check, LockKeyhole, Pencil, ShieldAlert, Trash2, UserRound } from 'lucide-react';
+import { Bell, Camera, Check, LockKeyhole, Pencil, ShieldAlert, Sparkles, Trash2, UserRound } from 'lucide-react';
 import { ROUTE_PATHS } from '../../../core/router/paths';
 import { getErrorMessage } from '../../../core/http/http-error';
 import { useAuth } from '../../../core/store/use-auth';
@@ -11,9 +11,9 @@ import {
   updateAccount,
   uploadAccountPhoto,
 } from '../services/account.service';
+import { PROFILE_PHOTO_PLACEHOLDER } from '../../../shared/utils/profile-photo';
 import './AccountSettingsPage.css';
 
-const PROFILE_PHOTO_PLACEHOLDER = '/images/user-placeholder.jpg';
 const MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
 const ALLOWED_PROFILE_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
@@ -177,6 +177,16 @@ export default function AccountSettingsPage() {
                 <UserRound size={19} aria-hidden="true" />
                 <h2>Informações do perfil</h2>
               </div>
+              {user?.tipo_conta === 'CLIENTE' ? (
+                <button
+                  className="button button--primary account-provider-onboarding-button"
+                  type="button"
+                  onClick={() => navigate(ROUTE_PATHS.providerOnboarding)}
+                >
+                  <Sparkles size={15} aria-hidden="true" />
+                  Cadastre-se como Profissional
+                </button>
+              ) : null}
             </div>
 
             <div className="account-photo-row">

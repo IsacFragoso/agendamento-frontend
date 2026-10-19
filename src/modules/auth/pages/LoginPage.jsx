@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { ROUTE_PATHS } from '../../../core/router/paths';
 import BrandLogo from '../../../shared/components/BrandLogo';
+import ThemeToggle from '../../../shared/components/ThemeToggle';
 import { useAuthActions } from '../hooks/useAuthActions';
 
 const INITIAL_LOGIN_FORM = {
@@ -53,6 +54,8 @@ export default function LoginPage() {
           <ArrowRight size={18} aria-hidden="true" />
         </button>
       </aside>
+
+      <ThemeToggle className="theme-toggle--floating" />
 
       <section className="auth-form-panel">
         <div className="auth-form-box">

@@ -36,6 +36,12 @@ export function useProviderAppointments({ token }) {
     return () => window.clearTimeout(timeoutId);
   }, [loadAppointments]);
 
+  useEffect(() => {
+    if (!feedbackMessage) return undefined;
+    const timeoutId = window.setTimeout(() => setFeedbackMessage(''), 4000);
+    return () => window.clearTimeout(timeoutId);
+  }, [feedbackMessage]);
+
   const changeAppointmentStatus = async (appointmentId, status) => {
     setIsSubmitting(true);
     setErrorMessage('');

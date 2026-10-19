@@ -1,57 +1,52 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { LogOut, Moon, Sun } from 'lucide-react';
+import { Link, matchPath, useLocation, useNavigate } from 'react-router-dom';
+import { ArrowLeft, LogOut } from 'lucide-react';
 import { ROUTE_PATHS } from '../../../core/router/paths';
 import { useAuth } from '../../../core/store/use-auth';
+import LocationIndicator from '../LocationIndicator';
 import './AppHeader.css';
 
-const THEME_STORAGE_KEY = 'agendamento-web/theme';
-
-const getStoredTheme = () => {
-  try {
-    return window.localStorage.getItem(THEME_STORAGE_KEY) === 'dark' ? 'dark' : 'light';
-  } catch {
-    return 'light';
-  }
-};
-
-export default function AppHeader() {
+export default function AppHeader({ showBrand = false }) {
   const navigate = useNavigate();
-  const { logout } = useAuth();
-  const [theme, setTheme] = useState(getStoredTheme);
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
-    } catch {
-      return undefined;
-    }
-    return undefined;
-  }, [theme]);
+  const { pathname, key } = useLocation();
+  const { isAuthenticated, logout } = useAuth();
+  const canGoBack = Boolean(matchPath({ path: ROUTE_PATHS.providerProfile, end: false }, pathname));
 
   const handleLogout = () => {
     logout();
     navigate(ROUTE_PATHS.login, { replace: true });
   };
 
+  const handleBack = () => {
+    if (key === 'default') {
+      navigate(ROUTE_PATHS.marketplace);
+      return;
+    }
+    navigate(-1);
+  };
+
   return (
-    <header className="app-header">
+    <header className={`app-header ${showBrand ? 'app-header--with-brand' : ''}`}>
+      <div className="app-header__start">
+        {canGoBack ? (
+          <button className="app-header__back" type="button" onClick={handleBack} aria-label="Voltar" title="Voltar">
+            <ArrowLeft size={18} strokeWidth={2} aria-hidden="true" />
+          </button>
+        ) : null}
+        {showBrand ? (
+          <Link className="app-header__brand" to={ROUTE_PATHS.marketplace} aria-label="SAPNE, início">
+            <span className="app-header__brand-mark">✦</span>
+            <span>SAPNE</span>
+          </Link>
+        ) : null}
+      </div>
       <div className="app-header__actions">
-        <button
-          className="app-header__theme"
-          type="button"
-          aria-label={`Ativar modo ${theme === 'dark' ? 'claro' : 'escuro'}`}
-          aria-pressed={theme === 'dark'}
-          onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
-        >
-          {theme === 'dark' ? <Sun size={17} aria-hidden="true" /> : <Moon size={17} aria-hidden="true" />}
-          <span>{theme === 'dark' ? 'Modo claro' : 'Modo escuro'}</span>
-        </button>
-      <button className="app-header__logout" type="button" onClick={handleLogout}>
-        <LogOut size={17} strokeWidth={2} aria-hidden="true" />
-        <span>Sair</span>
-      </button>
+        <LocationIndicator />
+        {isAuthenticated ? (
+          <button className="app-header__logout" type="button" onClick={handleLogout}>
+            <LogOut size={17} strokeWidth={2} aria-hidden="true" />
+            <span>Sair</span>
+          </button>
+        ) : null}
       </div>
     </header>
   );
