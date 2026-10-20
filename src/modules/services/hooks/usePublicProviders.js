@@ -13,9 +13,6 @@ export function usePublicProviders() {
 
     try {
       const payload = await listProviders();
-      // DEBUG: log and normalize provider prices so we can verify what the frontend receives
-      // eslint-disable-next-line no-console
-      console.log('usePublicProviders raw payload:', payload);
       const normalized = Array.isArray(payload)
         ? payload.map((prov) => ({
             ...prov,
@@ -27,8 +24,6 @@ export function usePublicProviders() {
             preco: prov.preco == null ? null : Number(prov.preco),
           }))
         : [];
-      // eslint-disable-next-line no-console
-      console.log('usePublicProviders normalized payload:', normalized);
       setProviders(normalized);
     } catch (error) {
       setProviders([]);

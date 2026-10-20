@@ -93,16 +93,31 @@ The backend stores appointment timestamps in UTC. The UI displays and converts a
 
 Automated tests use Vitest with jsdom and run with `npm test`. The current suite covers route helpers, auth session expiry, date/time formatting, and provider-card mapping. Run `npm run lint` and `npm run build` as well.
 
-## 9. Adding a feature (checklist)
+## 9. Routing and layouts
+
+All URLs live in `src/core/router/paths.js`; pages and components never build URL strings by hand.
+
+- **Constants:** `ROUTE_PATHS` holds fixed paths and the router patterns (e.g. `providerProfile` is `/profissionais/:providerId`).
+- **Helpers:** URLs with parameters come from helpers: `getProviderPath(section)`, `getClientPath(section)`, `getProviderProfilePath(id)`, `getBookingPath(id, serviceId)`. Add a helper when you add a parameterised route.
+- **Naming:** paths are lowercase pt-BR. Public routes sit at the top level (`/explorar`, `/profissionais/...`, `/login`, `/cadastro`). Everything private sits under `/app/...`.
+- **Layouts** (in `shared/components/layouts/`):
+  - `PublicLayout` wraps the marketplace, provider profile and booking pages. It shows the header, and switches to the sidebar layout for logged-in `PRESTADOR` and `CLIENTE` accounts.
+  - `AppLayout` (sidebar and header) wraps the private pages.
+  - Login, register and unsupported-account pages use no shared layout.
+- **Header:** `AppHeader` is constant on all layouts. The back arrow only appears on provider profile and booking routes.
+- **Static assets:** build asset URLs from `import.meta.env.BASE_URL`, never `/images/...`, because production is served from `/agendamento-frontend/`. See `shared/utils/profile-photo.js`.
+- **Tests:** add cases to `core/router/paths.test.js` when you add helpers.
+
+## 10. Adding a feature (checklist)
 
 1. Confirm the endpoint's path, request body and response with the backend team or the backend repo.
 2. Create `modules/<feature>/` following the small `modules/schedules/` example: endpoint calls in a service, request/UI state in a hook, and screen composition in a page or the owning page.
 3. Write the service (API calls), then the hook, then the page and components.
-4. Register the route in the router; protect it if it needs a session.
+4. Add the path (and helper, if parameterised) to `paths.js`, register the route in the router under the right layout, and protect it if it needs a session.
 5. Handle loading, error, empty and (for bookings) conflict states.
 6. Run lint and build; test the flow manually.
 
-## 10. Not in this project (on purpose)
+## 11. Not in this project (on purpose)
 
 - No TypeScript: do not rename files to `.tsx` or add type-only tooling.
 - No UI framework, state-management library or API-client library.
