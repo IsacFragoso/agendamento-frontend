@@ -21,18 +21,25 @@ export default function ProviderDashboardPage() {
   const [pendingPage, setPendingPage] = useState(1);
   const [completionAppointment, setCompletionAppointment] = useState(null);
   const [detailsAppointment, setDetailsAppointment] = useState(null);
+  const [cancelAppointment, setCancelAppointment] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [reviewAppointment, setReviewAppointment] = useState(null);
+  const [reviewRating, setReviewRating] = useState('5');
+  const [reviewComment, setReviewComment] = useState('');
 
   useEffect(() => {
-    if ((!completionAppointment && !detailsAppointment) || (completionAppointment && appointments.isSubmitting)) return undefined;
+    if ((!completionAppointment && !detailsAppointment && !cancelAppointment && !reviewAppointment) || appointments.isSubmitting) return undefined;
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         setCompletionAppointment(null);
         setDetailsAppointment(null);
+        setCancelAppointment(null);
+        setReviewAppointment(null);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [completionAppointment, detailsAppointment, appointments.isSubmitting]);
+  }, [completionAppointment, detailsAppointment, cancelAppointment, reviewAppointment, appointments.isSubmitting]);
 
   const completeAppointment = async () => {
     const updated = await appointments.changeAppointmentStatus(
@@ -42,7 +49,42 @@ export default function ProviderDashboardPage() {
     if (updated) setCompletionAppointment(null);
   };
 
-  const pending = appointments.appointments
+  const submitCancellation = async (event) => {
+    event.preventDefault();
+    if (!cancelReason.trim()) return;
+    const cancelled = await appointments.changeAppointmentStatus(
+      appointmentId(cancelAppointment),
+      'CANCELADO',
+      cancelReason.trim(),
+    );
+    if (cancelled) {
+      setCancelAppointment(null);
+      setCancelReason('');
+    }
+  };
+
+  const submitReview = async (event) => {
+    event.preventDefault();
+    const saved = await appointments.reviewAppointment(appointmentId(reviewAppointment), {
+      nota_estrelas: Number(reviewRating),
+      comentario: reviewComment.trim(),
+    });
+    if (saved) {
+      setReviewAppointment(null);
+      setReviewComment('');
+    }
+  };
+
+  const providerAppointments = appointments.appointments
+    .filter((item) => String(item.id_prestador) === String(user?.id));
+  const bookedByMe = appointments.appointments
+    .filter((item) => String(item.id_cliente) === String(user?.id) && String(item.id_prestador) !== String(user?.id));
+  const appointmentOtherParty = (item) => (
+    String(item.id_cliente) === String(user?.id)
+      ? item.prestador?.usuario?.nome_completo || 'Profissional'
+      : item.cliente?.nome_completo || 'Cliente'
+  );
+  const pending = providerAppointments
     .filter((item) => item.status === 'PENDENTE')
     .sort((left, right) => new Date(left.data_criacao || left.data_hora_inicio) - new Date(right.data_criacao || right.data_hora_inicio));
   const pendingPageCount = Math.max(1, Math.ceil(pending.length / PENDING_PAGE_SIZE));
@@ -51,7 +93,7 @@ export default function ProviderDashboardPage() {
     (currentPendingPage - 1) * PENDING_PAGE_SIZE,
     currentPendingPage * PENDING_PAGE_SIZE,
   );
-  const confirmed = appointments.appointments
+  const confirmed = providerAppointments
     .filter((item) => item.status === 'CONFIRMADO')
     .sort((left, right) => new Date(left.data_hora_inicio) - new Date(right.data_hora_inicio));
   const todayKey = new Date().toLocaleDateString('en-CA');
@@ -62,10 +104,11 @@ export default function ProviderDashboardPage() {
   const requestSections = [
     { key: 'pendentes', eyebrow: 'Aguardando resposta', title: 'Solicitações pendentes', items: pending, empty: 'Nenhuma solicitação aguardando resposta.' },
     { key: 'confirmados', eyebrow: 'Agenda', title: 'Agendamentos confirmados', items: confirmed, empty: 'Nenhum agendamento confirmado.' },
+    { key: 'agendados-por-mim', eyebrow: 'Como cliente', title: 'Serviços que agendei', items: bookedByMe.filter((item) => ['PENDENTE', 'CONFIRMADO'].includes(item.status)), empty: 'Você não agendou serviços com outros profissionais.' },
   ];
   const historyAppointments = appointments.appointments
     .filter((item) => ['CONCLUIDO', 'CANCELADO'].includes(item.status))
-    .filter((item) => `${item.cliente?.nome_completo || ''} ${item.servico?.titulo || ''}`.toLowerCase().includes(historySearch.toLowerCase()));
+    .filter((item) => `${appointmentOtherParty(item)} ${item.servico?.titulo || ''}`.toLowerCase().includes(historySearch.toLowerCase()));
   const stats = {
     pending: pending.length,
     confirmed: confirmed.length,
@@ -119,6 +162,7 @@ export default function ProviderDashboardPage() {
               {todayAppointments.length > PANEL_LIMIT ? (
                 <p className="provider-panel__notice">Mostrando {PANEL_LIMIT} de {todayAppointments.length} atendimentos. <Link to={getProviderPath('agenda')}>Abrir agenda completa</Link></p>
               ) : null}
+
             </section>
             <section className="dashboard-panel">
               <div className="dashboard-panel__heading"><div><p className="dashboard-eyebrow">Caixa de entrada</p><h2>Solicitações pendentes</h2></div><span className="provider-pending-count">{pending.length}</span></div>
@@ -145,7 +189,7 @@ export default function ProviderDashboardPage() {
                   <thead><tr><th>Cliente</th><th>Serviço</th><th>Data e hora</th><th>Status</th></tr></thead>
                   <tbody>{recentAppointments.map((appointment) => (
                     <tr key={appointmentId(appointment)}>
-                      <td>{appointment.cliente?.nome_completo || 'Cliente'}</td>
+                      <td>{appointmentOtherParty(appointment)}</td>
                       <td>{appointment.servico?.titulo || 'Serviço'}</td>
                       <td>{formatDate(appointment.data_hora_inicio)} · {formatTime(appointment.data_hora_inicio)}</td>
                       <td><StatusBadge status={appointment.status} /></td>
@@ -172,9 +216,12 @@ export default function ProviderDashboardPage() {
             {(requestSection.key === 'pendentes' ? visiblePending : requestSection.items).map((appointment) => (
               <article className={`provider-request ${appointment.status === 'PENDENTE' ? 'provider-request--pending' : ''}`} key={appointmentId(appointment)}>
                 <div className="provider-request__top">
-                  <div className="provider-request__avatar">{appointment.cliente?.nome_completo?.slice(0, 1) || 'C'}</div>
-                  <div className="provider-request__identity"><strong>{appointment.cliente?.nome_completo || 'Cliente'}</strong><span>{appointment.data_criacao ? `Solicitado em ${formatDate(appointment.data_criacao)} às ${formatTime(appointment.data_criacao)}` : (appointment.status === 'PENDENTE' ? 'Nova solicitação' : 'Agendamento confirmado')}</span></div>
+                  <div className="provider-request__avatar">{appointmentOtherParty(appointment).slice(0, 1) || 'C'}</div>
+                  <div className="provider-request__identity"><strong>{appointmentOtherParty(appointment)}</strong><span>{requestSection.key === 'agendados-por-mim' ? 'Agendamento solicitado por você' : appointment.data_criacao ? `Solicitado em ${formatDate(appointment.data_criacao)} às ${formatTime(appointment.data_criacao)}` : (appointment.status === 'PENDENTE' ? 'Nova solicitação' : 'Agendamento confirmado')}</span></div>
                   <StatusBadge status={appointment.status} />
+                </div>
+                <div className="provider-request__view">
+                  <button className="appointment-action" type="button" onClick={() => setDetailsAppointment(appointment)}>View</button>
                 </div>
                 <div className="provider-request__service"><strong>{appointment.servico?.titulo || 'Serviço'}</strong></div>
                 <div className="provider-request__facts">
@@ -191,14 +238,20 @@ export default function ProviderDashboardPage() {
                     <strong>{appointment.servico?.duracao_padrao || '—'} min</strong>
                   </div>
                 </div>
-                {appointment.status === 'PENDENTE' ? (
-                  <div className="provider-request__actions">
-                    <button className="button button--primary" type="button" disabled={appointments.isSubmitting} onClick={() => appointments.changeAppointmentStatus(appointmentId(appointment), 'CONFIRMADO')}>Aceitar proposta</button>
-                    <button className="button button--secondary" type="button" disabled={appointments.isSubmitting} onClick={() => appointments.changeAppointmentStatus(appointmentId(appointment), 'CANCELADO')}>Recusar</button>
+                {requestSection.key === 'agendados-por-mim' && ['PENDENTE', 'CONFIRMADO'].includes(appointment.status) ? (
+                  <div className="provider-request__actions provider-request__actions--single">
+                    <button className="button button--secondary" type="button" disabled={appointments.isSubmitting} onClick={() => { setCancelReason(''); setCancelAppointment(appointment); }}>Cancelar</button>
                   </div>
                 ) : null}
-                {appointment.status === 'CONFIRMADO' ? (
+                {requestSection.key !== 'agendados-por-mim' && appointment.status === 'PENDENTE' ? (
+                  <div className="provider-request__actions">
+                    <button className="button button--primary" type="button" disabled={appointments.isSubmitting} onClick={() => appointments.changeAppointmentStatus(appointmentId(appointment), 'CONFIRMADO')}>Aceitar proposta</button>
+                    <button className="button button--secondary" type="button" disabled={appointments.isSubmitting} onClick={() => { setCancelReason(''); setCancelAppointment(appointment); }}>Recusar</button>
+                  </div>
+                ) : null}
+                {requestSection.key !== 'agendados-por-mim' && appointment.status === 'CONFIRMADO' ? (
                   <div className="provider-request__actions provider-request__actions--single">
+                    <button className="button button--secondary" type="button" disabled={appointments.isSubmitting} onClick={() => { setCancelReason(''); setCancelAppointment(appointment); }}>Cancelar</button>
                     <button
                       className="button button--secondary"
                       type="button"
@@ -227,7 +280,17 @@ export default function ProviderDashboardPage() {
       {activeSection === 'historico' ? (
         <section className="dashboard-panel">
           <div className="dashboard-panel__heading dashboard-panel__heading--stack-mobile"><div><p className="dashboard-eyebrow">Registros</p><h2>Atendimentos anteriores</h2></div><label className="dashboard-search"><span aria-hidden="true">⌕</span><input aria-label="Buscar no histórico" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} placeholder="Buscar cliente ou serviço" /></label></div>
-          <div className="dashboard-table-wrap"><table className="dashboard-table"><thead><tr><th>Cliente</th><th>Serviço</th><th>Data e hora</th><th>Valor</th><th>Status</th></tr></thead><tbody>{historyAppointments.map((appointment) => <tr key={appointmentId(appointment)}><td>{appointment.cliente?.nome_completo || 'Cliente'}</td><td>{appointment.servico?.titulo || 'Serviço'}</td><td>{formatDate(appointment.data_hora_inicio)} · {formatTime(appointment.data_hora_inicio)}</td><td>{formatCurrency(appointment.servico?.preco)}</td><td><StatusBadge status={appointment.status} /></td></tr>)}</tbody></table>{!appointments.isLoading && !historyAppointments.length ? <p className="dashboard-empty">Nenhum atendimento anterior encontrado.</p> : null}</div>
+          <div className="dashboard-table-wrap"><table className="dashboard-table"><thead><tr><th>Cliente / Profissional</th><th>Serviço</th><th>Data e hora</th><th>Valor</th><th>Status</th><th>Ação</th></tr></thead><tbody>{historyAppointments.map((appointment) => {
+            const clientReview = (appointment.avaliacoes || []).find((review) => review.avaliador_tipo === 'CLIENTE');
+            const providerReview = (appointment.avaliacoes || []).find((review) => review.avaliador_tipo === 'PRESTADOR');
+            const isMyBooking = String(appointment.id_cliente) === String(user?.id);
+            return <tr key={appointmentId(appointment)}><td>{appointmentOtherParty(appointment)}</td><td>{appointment.servico?.titulo || 'Serviço'}</td><td>{formatDate(appointment.data_hora_inicio)} · {formatTime(appointment.data_hora_inicio)}</td><td>{formatCurrency(appointment.servico?.preco)}</td><td><StatusBadge status={appointment.status} />{appointment.status === 'CANCELADO' ? <small className="appointment-cancellation-note">{appointment.cancelado_por === 'CLIENTE' ? 'Cancelado pelo cliente' : appointment.cancelado_por === 'PRESTADOR' ? 'Cancelado pelo prestador' : appointment.cancelado_por === 'SISTEMA' ? 'Cancelado pelo sistema' : 'Responsável não informado'} · {appointment.motivo_cancelamento || 'Motivo não informado'}</small> : null}</td><td><div className="client-history__actions">
+              {appointment.status === 'CONCLUIDO' && !providerReview ? <button className="client-history__action" type="button" onClick={() => { setReviewAppointment(appointment); setReviewRating('5'); setReviewComment(''); }}>Avaliar {isMyBooking ? 'profissional' : 'cliente'}</button> : null}
+              {clientReview ? <span className="client-history__review">Cliente avaliou o serviço: {clientReview.nota_estrelas}★ · {clientReview.comentario || 'Sem comentário'}</span> : null}
+              {providerReview ? <span className="client-history__review">Você avaliou: {providerReview.nota_estrelas}★</span> : null}
+              <button className="appointment-action" type="button" onClick={() => setDetailsAppointment(appointment)}>View</button>
+            </div></td></tr>;
+          })}</tbody></table>{!appointments.isLoading && !historyAppointments.length ? <p className="dashboard-empty">Nenhum atendimento anterior encontrado.</p> : null}</div>
         </section>
       ) : null}
 
@@ -292,6 +355,7 @@ export default function ProviderDashboardPage() {
             aria-modal="true"
             aria-labelledby="provider-appointment-title"
           >
+            <button className="appointment-dialog-close" type="button" aria-label="Fechar" onClick={() => setDetailsAppointment(null)}>×</button>
             <h2 id="provider-appointment-title">Detalhes do atendimento</h2>
             <dl className="provider-appointment-details">
               <div><dt>Serviço</dt><dd>{detailsAppointment.servico?.titulo || 'Atendimento'}</dd></div>
@@ -303,11 +367,47 @@ export default function ProviderDashboardPage() {
               {detailsAppointment.data_criacao ? (
                 <div><dt>Solicitado em</dt><dd>{formatDate(detailsAppointment.data_criacao)} às {formatTime(detailsAppointment.data_criacao)}</dd></div>
               ) : null}
+              {String(detailsAppointment.id_cliente) === String(user?.id) ? <div><dt>Profissional</dt><dd>{detailsAppointment.prestador?.usuario?.nome_completo || 'Profissional'}</dd></div> : null}
+              {detailsAppointment.status === 'CANCELADO' ? <>
+                <div><dt>Motivo do cancelamento</dt><dd>{detailsAppointment.motivo_cancelamento || 'Não informado'}</dd></div>
+                <div><dt>Cancelado por</dt><dd>{detailsAppointment.cancelado_por === 'CLIENTE' ? 'Cliente' : detailsAppointment.cancelado_por === 'PRESTADOR' ? 'Prestador' : detailsAppointment.cancelado_por === 'SISTEMA' ? 'Sistema' : 'Responsável não informado'}</dd></div>
+              </> : null}
+              {(detailsAppointment.avaliacoes || []).map((review) => (
+                <div key={review.id_avaliacao}>
+                  <dt>{review.avaliador_tipo === 'CLIENTE' ? 'Avaliação do cliente sobre o serviço' : 'Avaliação do profissional sobre o cliente'}</dt>
+                  <dd>{review.nota_estrelas} estrelas · {review.comentario || 'Sem comentário'}</dd>
+                </div>
+              ))}
             </dl>
             <div className="provider-completion-dialog__actions">
               <button className="button button--primary" type="button" onClick={() => setDetailsAppointment(null)}>Fechar</button>
             </div>
           </section>
+        </div>
+      ) : null}
+
+      {cancelAppointment ? (
+        <div className="provider-completion-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !appointments.isSubmitting) setCancelAppointment(null); }}>
+          <form className="provider-completion-dialog" role="dialog" aria-modal="true" aria-labelledby="provider-cancel-title" onSubmit={submitCancellation}>
+            <h2 id="provider-cancel-title">{cancelAppointment.status === 'PENDENTE' && String(cancelAppointment.id_prestador) === String(user?.id) ? 'Recusar agendamento' : 'Cancelar agendamento'}</h2>
+            <p>Informe o motivo para <strong>{appointmentOtherParty(cancelAppointment)}</strong> · {cancelAppointment.servico?.titulo || 'serviço'}.</p>
+            <label className="field"><span>Motivo do cancelamento</span><textarea required maxLength={1000} rows={4} value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} /></label>
+            {appointments.errorMessage ? <p className="feedback feedback--danger" role="alert">{appointments.errorMessage}</p> : null}
+            <div className="provider-completion-dialog__actions"><button className="button button--secondary" type="button" disabled={appointments.isSubmitting} onClick={() => setCancelAppointment(null)}>Voltar</button><button className="button button--danger" type="submit" disabled={appointments.isSubmitting || !cancelReason.trim()}>{appointments.isSubmitting ? 'Cancelando...' : 'Confirmar cancelamento'}</button></div>
+          </form>
+        </div>
+      ) : null}
+
+      {reviewAppointment ? (
+        <div className="provider-completion-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !appointments.isSubmitting) setReviewAppointment(null); }}>
+          <form className="provider-completion-dialog" role="dialog" aria-modal="true" aria-labelledby="provider-review-title" onSubmit={submitReview}>
+            <h2 id="provider-review-title">Avaliar {String(reviewAppointment.id_cliente) === String(user?.id) ? 'profissional' : 'cliente'}</h2>
+            <p>{appointmentOtherParty(reviewAppointment)} · {reviewAppointment.servico?.titulo || 'Serviço'}</p>
+            <label className="field"><span>Nota</span><select value={reviewRating} onChange={(event) => setReviewRating(event.target.value)}>{[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating} {rating === 1 ? 'estrela' : 'estrelas'}</option>)}</select></label>
+            <label className="field"><span>Comentário (opcional)</span><textarea maxLength={2000} rows={4} value={reviewComment} onChange={(event) => setReviewComment(event.target.value)} /></label>
+            {appointments.errorMessage ? <p className="feedback feedback--danger" role="alert">{appointments.errorMessage}</p> : null}
+            <div className="provider-completion-dialog__actions"><button className="button button--secondary" type="button" disabled={appointments.isSubmitting} onClick={() => setReviewAppointment(null)}>Voltar</button><button className="button button--primary" type="submit" disabled={appointments.isSubmitting}>{appointments.isSubmitting ? 'Enviando...' : 'Enviar avaliação'}</button></div>
+          </form>
         </div>
       ) : null}
     </main>

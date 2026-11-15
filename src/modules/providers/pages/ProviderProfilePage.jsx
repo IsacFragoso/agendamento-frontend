@@ -4,7 +4,8 @@ import { Mail, Phone } from 'lucide-react';
 import { getErrorMessage } from '../../../core/http/http-error';
 import { ROUTE_PATHS, getBookingPath } from '../../../core/router/paths';
 import { useAuth } from '../../../core/store/use-auth';
-import { getProviderContacts, getPublicProvider, listProviderSchedule } from '../services/providers.service';
+import { formatDate } from '../../../shared/utils/format';
+import { getProviderContacts, getPublicProvider, listProviderSchedule, createProviderSuggestion, listProviderSuggestions } from '../services/providers.service';
 import './marketplace.css';
 
 const WEEK_DAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -16,13 +17,21 @@ const formatPhone = (value) => {
 
 export default function ProviderProfilePage() {
   const { providerId } = useParams();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, token, user } = useAuth();
   const isOwnProfile = isAuthenticated && String(user?.id) === String(providerId);
+  const isProvider = user?.tipo_conta === 'PRESTADOR';
   const [provider, setProvider] = useState(null);
   const [schedule, setSchedule] = useState([]);
   const [contacts, setContacts] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('servicos');
+  const [suggestionText, setSuggestionText] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionMessage, setSuggestionMessage] = useState('');
+  const [suggestionError, setSuggestionError] = useState('');
+  const [isSubmittingSuggestion, setIsSubmittingSuggestion] = useState(false);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true);
 
   useEffect(() => {
     let isCurrent = true;
@@ -49,6 +58,33 @@ export default function ProviderProfilePage() {
       isCurrent = false;
     };
   }, [providerId]);
+
+  useEffect(() => {
+    if (!isOwnProfile || !isProvider || !token) return undefined;
+    let isCurrent = true;
+    listProviderSuggestions(providerId, token)
+      .then((items) => { if (isCurrent) setSuggestions(Array.isArray(items) ? items : []); })
+      .catch((error) => { if (isCurrent) setSuggestionError(getErrorMessage(error, 'Não foi possível carregar as sugestões recebidas.')); })
+      .finally(() => { if (isCurrent) setIsLoadingSuggestions(false); });
+    return () => { isCurrent = false; };
+  }, [isOwnProfile, isProvider, providerId, token]);
+
+  const submitSuggestion = async (event) => {
+    event.preventDefault();
+    setSuggestionMessage('');
+    setSuggestionError('');
+    if (!suggestionText.trim()) return;
+    setIsSubmittingSuggestion(true);
+    try {
+      await createProviderSuggestion(providerId, suggestionText.trim(), token);
+      setSuggestionText('');
+      setSuggestionMessage('Sugestão enviada ao profissional.');
+    } catch (error) {
+      setSuggestionError(getErrorMessage(error, 'Não foi possível enviar a sugestão.'));
+    } finally {
+      setIsSubmittingSuggestion(false);
+    }
+  };
 
   const categoryNames = [...new Set((provider?.servicos || []).map((service) => service.categoria?.nome).filter(Boolean))];
 
@@ -93,15 +129,17 @@ export default function ProviderProfilePage() {
             <div className="provider-profile-grid">
               <section className="provider-services">
                 <nav className="provider-tabs" aria-label="Seções do perfil">
-                  <span className="provider-tabs__item is-active" aria-current="page">Serviços ({provider.servicos?.length || 0})</span>
+                  <button className={`provider-tabs__item ${activeTab === 'servicos' ? 'is-active' : ''}`} type="button" onClick={() => setActiveTab('servicos')}>Serviços ({provider.servicos?.length || 0})</button>
+                  {isAuthenticated && !isOwnProfile ? <button className={`provider-tabs__item ${activeTab === 'sugestoes' ? 'is-active' : ''}`} type="button" onClick={() => setActiveTab('sugestoes')}>Enviar sugestão</button> : null}
+                  {isOwnProfile && isProvider ? <button className={`provider-tabs__item ${activeTab === 'sugestoes' ? 'is-active' : ''}`} type="button" onClick={() => setActiveTab('sugestoes')}>Sugestões recebidas ({suggestions.length})</button> : null}
                 </nav>
 
-                {provider.perfil?.bio ? <p className="provider-bio">{provider.perfil.bio}</p> : null}
-                {!provider.servicos?.length ? (
-                  <p className="provider-empty">Este profissional ainda não publicou serviços.</p>
-                ) : null}
+                {activeTab === 'servicos' ? (
+                  <>
+                    {provider.perfil?.bio ? <p className="provider-bio">{provider.perfil.bio}</p> : null}
+                    {!provider.servicos?.length ? <p className="provider-empty">Este profissional ainda não publicou serviços.</p> : null}
 
-                {(provider.servicos || []).map((service) => (
+                    {(provider.servicos || []).map((service) => (
                   <article className="provider-service-row" key={service.id_servico}>
                     <div>
                       <h3>{service.titulo}</h3>
@@ -120,7 +158,35 @@ export default function ProviderProfilePage() {
                       </div>
                     ) : null}
                   </article>
-                ))}
+                    ))}
+                  </>
+                ) : null}
+
+                {activeTab === 'sugestoes' && isAuthenticated && !isOwnProfile ? (
+                  <form className="provider-suggestion-form" onSubmit={submitSuggestion}>
+                    <h2>Enviar sugestão ao profissional</h2>
+                    <p>Compartilhe uma ideia, serviço ou melhoria diretamente com {provider.nome_completo}.</p>
+                    {suggestionMessage ? <p className="feedback feedback--success" role="status">{suggestionMessage}</p> : null}
+                    {suggestionError ? <p className="feedback feedback--danger" role="alert">{suggestionError}</p> : null}
+                    <label className="field"><span>Sua sugestão</span><textarea required minLength={2} maxLength={2000} rows={5} value={suggestionText} onChange={(event) => setSuggestionText(event.target.value)} placeholder="Escreva sua sugestão..." /></label>
+                    <button className="button button--primary" type="submit" disabled={isSubmittingSuggestion || !suggestionText.trim()}>{isSubmittingSuggestion ? 'Enviando...' : 'Enviar sugestão'}</button>
+                  </form>
+                ) : null}
+
+                {activeTab === 'sugestoes' && isOwnProfile && isProvider ? (
+                  <section className="provider-suggestions">
+                    <h2>Sugestões recebidas</h2>
+                    {suggestionError ? <p className="feedback feedback--danger" role="alert">{suggestionError}</p> : null}
+                    {isLoadingSuggestions ? <p className="provider-empty">Carregando sugestões...</p> : null}
+                    {!isLoadingSuggestions && !suggestions.length ? <p className="provider-empty">Você ainda não recebeu sugestões.</p> : null}
+                    {suggestions.map((item) => (
+                      <article className="provider-suggestion-item" key={item.id_sugestao}>
+                        <div><strong>{item.remetente_nome}</strong><span>Enviada por {item.remetente_tipo === 'CLIENTE' ? 'cliente' : 'profissional'} · {formatDate(item.data_criacao)}</span></div>
+                        <p>{item.sugestao}</p>
+                      </article>
+                    ))}
+                  </section>
+                ) : null}
               </section>
 
               <aside className="provider-hours">

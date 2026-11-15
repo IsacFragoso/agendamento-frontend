@@ -4,6 +4,7 @@ import { PublicOnlyRoute, RouteGuard } from './RouteGuard';
 import { ROUTE_PATHS, getDashboardPathForAccountType, getClientPath, getProviderPath } from './paths';
 import LoginPage from '../../modules/auth/pages/LoginPage';
 import RegisterPage from '../../modules/auth/pages/RegisterPage';
+import PasswordRecoveryPage from '../../modules/auth/pages/PasswordRecoveryPage';
 import AccountSettingsPage from '../../modules/auth/pages/AccountSettingsPage';
 import ProviderOnboardingPage from '../../modules/auth/pages/ProviderOnboardingPage';
 import UnsupportedAccountPage from '../../modules/auth/pages/UnsupportedAccountPage';
@@ -47,6 +48,7 @@ export function AppRouter() {
         <Route element={<PublicOnlyRoute />}>
           <Route path={ROUTE_PATHS.login} element={<LoginPage />} />
           <Route path={ROUTE_PATHS.register} element={<RegisterPage />} />
+          <Route path={ROUTE_PATHS.passwordRecovery} element={<PasswordRecoveryPage />} />
         </Route>
 
         <Route element={<RouteGuard />}>

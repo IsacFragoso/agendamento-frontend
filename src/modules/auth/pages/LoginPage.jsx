@@ -102,6 +102,9 @@ export default function LoginPage() {
           <p className="auth-card__footer">
             Ainda não tem conta? <Link to={ROUTE_PATHS.register}>Cadastre-se</Link>
           </p>
+          <p className="auth-card__footer">
+            Esqueceu sua senha? <Link to={ROUTE_PATHS.passwordRecovery}>Recuperar senha</Link>
+          </p>
         </div>
       </section>
     </main>

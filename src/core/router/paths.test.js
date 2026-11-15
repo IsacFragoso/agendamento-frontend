@@ -10,4 +10,8 @@ describe('getDashboardPathForAccountType', () => {
   it('routes unsupported roles to the unavailable-access page', () => {
     expect(getDashboardPathForAccountType('ADMIN')).toBe(ROUTE_PATHS.unsupportedRole);
   });
+
+  it('exposes password recovery to unauthenticated users', () => {
+    expect(ROUTE_PATHS.passwordRecovery).toBe('/recuperar-senha');
+  });
 });

@@ -122,4 +122,6 @@ All URLs live in `src/core/router/paths.js`; pages and components never build UR
 - No TypeScript: do not rename files to `.tsx` or add type-only tooling.
 - No UI framework, state-management library or API-client library.
 - User-facing copy is Brazilian Portuguese (`pt-BR`); there is no i18n framework. Routes are defined in `core/router/paths.js` and wired in `core/router/AppRouter.jsx`.
-- Appointment status updates currently accept `PENDENTE`, `CONFIRMADO`, `CANCELADO`, or `CONCLUIDO` and are provider/admin operations. There is no appointment rescheduling endpoint or client cancellation action in the current API; do not invent those flows in the frontend.
+- Appointment status updates accept `PENDENTE`, `CONFIRMADO`, `CANCELADO`, or `CONCLUIDO`. Clients and providers can cancel their own appointments with a reason; providers can confirm and complete appointments assigned to them. Pending appointments whose start date has expired are automatically cancelled by the API.
+- Completed appointments allow one review by each participant. Provider profiles expose a suggestion form to signed-in clients and providers, and a private list of received suggestions to the profile owner.
+- Password recovery is available on the login screen and requires SMTP configuration on the backend.

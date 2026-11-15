@@ -16,3 +16,11 @@ export const getProviderContacts = (providerId) => requestHelper(`/prestadores/$
 export const getProviderAvailability = (providerId, serviceId, date) => requestHelper(
 	`/prestadores/${providerId}/horario/disponibilidade?servico_id=${serviceId}&data=${date}`,
 );
+
+export const createProviderSuggestion = (providerId, suggestion, token) => requestHelper(`/prestadores/${providerId}/sugestoes`, {
+	method: 'POST',
+	token,
+	body: JSON.stringify({ sugestao: suggestion }),
+});
+
+export const listProviderSuggestions = (providerId, token) => requestHelper(`/prestadores/${providerId}/sugestoes`, { token });

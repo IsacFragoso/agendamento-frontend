@@ -9,3 +9,13 @@ export const loginUser = (payload) => requestHelper('/auth/login', {
   method: 'POST',
   body: JSON.stringify(payload),
 });
+
+export const requestPasswordReset = (email) => requestHelper('/auth/recuperar-senha', {
+  method: 'POST',
+  body: JSON.stringify({ email }),
+});
+
+export const resetPassword = (payload) => requestHelper('/auth/redefinir-senha', {
+  method: 'POST',
+  body: JSON.stringify(payload),
+});

@@ -67,7 +67,10 @@ Before finishing, run lint and build (and tests, if configured).
 ## Booking behavior in the UI
 
 - The frontend may pre-check availability for UX, but the backend is the real guard against double booking. Always handle a `409` conflict response gracefully (message plus refreshed availability).
-- The appointment API accepts `PENDENTE`, `CONFIRMADO`, `CANCELADO`, and `CONCLUIDO` status values. Status updates are provider/admin operations; the current API has no appointment reschedule endpoint and no client cancellation action. Do not invent those flows in the UI. Show the backend's error message when an action is refused.
+- The appointment API accepts `PENDENTE`, `CONFIRMADO`, `CANCELADO`, and `CONCLUIDO` status values. Clients and providers can cancel their own appointments with a required reason; providers can also confirm and complete appointments assigned to them. The backend records who cancelled, and automatically cancels expired pending appointments.
+- Both appointment participants can leave one service-specific review after completion. Providers who book another provider's service can manage that appointment as the client participant.
+- Authenticated clients and providers can send suggestions from a provider profile; providers can read suggestions received on their own profile.
+- Password recovery uses SMTP configured on the backend; the frontend never handles SMTP credentials. Show the backend's error message when an action is refused.
 
 ## Git and safety
 

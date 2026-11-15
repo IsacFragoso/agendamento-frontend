@@ -16,7 +16,13 @@ import './ClientHistory.css';
 const STATUS_LABELS = { CONCLUIDO: 'Concluído', CANCELADO: 'Cancelado' };
 const STATUS_TONES = { CONCLUIDO: 'success', CANCELADO: 'danger' };
 
-export default function ClientHistory({ appointments, isLoading }) {
+export default function ClientHistory({
+  appointments,
+  isLoading,
+  onReview,
+  getClientReview = (appointment) => (appointment.avaliacoes || []).find((review) => review.avaliador_tipo === 'CLIENTE'),
+  getProviderReview = (appointment) => (appointment.avaliacoes || []).find((review) => review.avaliador_tipo === 'PRESTADOR'),
+}) {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('TODOS');
   const [months, setMonths] = useState('TODOS');
@@ -111,11 +117,28 @@ export default function ClientHistory({ appointments, isLoading }) {
                       </span>
                     </td>
                     <td>
-                      {appointment.id_prestador && appointment.id_servico ? (
-                        <Link className="client-history__action" to={getBookingPath(appointment.id_prestador, appointment.id_servico)}>
-                          Agendar novamente
-                        </Link>
-                      ) : null}
+                      <div className="client-history__actions">
+                        {appointment.status === 'CONCLUIDO' && onReview ? (
+                          getClientReview(appointment)
+                            ? <span className="client-history__review">Você avaliou: {getClientReview(appointment).nota_estrelas}★</span>
+                            : <button className="client-history__action" type="button" onClick={() => onReview(appointment)}>Avaliar profissional</button>
+                        ) : null}
+                        {getProviderReview(appointment) ? (
+                          <span className="client-history__review">Profissional avaliou você: {getProviderReview(appointment).nota_estrelas}★</span>
+                        ) : null}
+                        {appointment.status === 'CANCELADO' ? (
+                          <span className="client-history__review">
+                            {appointment.motivo_cancelamento || 'Motivo não informado'}
+                            {' · '}
+                            {appointment.cancelado_por === 'CLIENTE' ? 'Cancelado pelo cliente' : appointment.cancelado_por === 'PRESTADOR' ? 'Cancelado pelo prestador' : appointment.cancelado_por === 'SISTEMA' ? 'Cancelado pelo sistema' : 'Responsável não informado'}
+                          </span>
+                        ) : null}
+                        {appointment.id_prestador && appointment.id_servico ? (
+                          <Link className="client-history__action" to={getBookingPath(appointment.id_prestador, appointment.id_servico)}>
+                            Agendar novamente
+                          </Link>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 ))}

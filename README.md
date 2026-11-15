@@ -57,6 +57,18 @@ Aplicação web SPA para o sistema acadêmico de agendamento, com autenticação
 - `npm run predeploy` — executa `npm run build` antes da publicação.
 - `npm run deploy` — publica o conteúdo de `dist/` usando `gh-pages`.
 
+### Publicação no GitHub Pages
+
+O GitHub Pages hospeda somente o frontend. Depois de publicar a API em um host como Render, defina `VITE_API_BASE_URL` com a URL pública terminada em `/api` antes do build e da publicação:
+
+```powershell
+$env:VITE_API_BASE_URL = 'https://<servico>.onrender.com/api'
+npm run deploy
+Remove-Item Env:VITE_API_BASE_URL
+```
+
+Não inclua segredos em variáveis `VITE_`: elas ficam visíveis no navegador.
+
 ## Testes
 
 Os testes automatizados usam Vitest e jsdom. Execute `npm test` para rodar a suíte. Também rode `npm run lint` e `npm run build` para validar as alterações.
@@ -161,6 +173,18 @@ This repository contains the single-page web app for the school appointment-book
 - `npm run preview` — locally serve the production build.
 - `npm run predeploy` — run `npm run build` before deployment.
 - `npm run deploy` — publish the contents of `dist/` using `gh-pages`.
+
+### Publishing on GitHub Pages
+
+GitHub Pages hosts only the frontend. After deploying the API to a host such as Render, set `VITE_API_BASE_URL` to its public URL ending in `/api` before building and publishing:
+
+```powershell
+$env:VITE_API_BASE_URL = 'https://<service>.onrender.com/api'
+npm run deploy
+Remove-Item Env:VITE_API_BASE_URL
+```
+
+Do not put secrets in `VITE_` variables; they are visible in the browser.
 
 ## Tests
 

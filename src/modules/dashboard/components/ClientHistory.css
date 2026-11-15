@@ -85,6 +85,11 @@
   text-transform: uppercase;
 }
 
+.client-history__table th:nth-child(4),
+.client-history__table th:nth-child(5),
+.client-history__table td:nth-child(4),
+.client-history__table td:nth-child(5) { text-align: center; }
+
 .client-history__table td {
   padding: 14px 18px;
   border-top: 1px solid var(--color-border);
@@ -108,7 +113,12 @@
   font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
+  cursor: pointer;
 }
+
+.client-history__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 7px; }
+.client-history__actions button { border: 0; cursor: pointer; }
+.client-history__review { max-width: 240px; color: var(--color-text-muted); font-size: 0.72rem; white-space: normal; }
 
 .client-history__action:hover { background: var(--color-primary-hover); }
 
