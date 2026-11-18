@@ -218,16 +218,23 @@
 .provider-service-form .field textarea { resize: vertical; }
 .provider-service-form .actions-row { display: flex; gap: 8px; }
 .provider-schedule-form { display: grid; gap: 12px; }
+.provider-schedule-form__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.provider-schedule-form__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.provider-availability-layout { display: grid; grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr); align-items: start; gap: 15px; }
+.schedule-row { align-items: center; }
+.schedule-row__actions { display: flex; flex: 0 0 auto; gap: 6px; }
 .schedule-list { display: grid; gap: 0; margin-top: 18px; }
 .schedule-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 0; border-top: 1px solid var(--color-border); }
 .schedule-row > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
 .schedule-row strong { font-size: 0.77rem; }
 .schedule-row span { color: var(--color-text-muted); font-size: 0.73rem; }
 .schedule-row button { width: 28px; height: 28px; flex: 0 0 28px; border: 1px solid var(--color-border); border-radius: 5px; color: var(--color-danger); background: var(--color-surface); font-size: 1rem; }
+.schedule-row__actions button:first-child { color: var(--color-primary); }
 
 @media (max-width: 900px) {
   .dashboard-columns { grid-template-columns: minmax(0, 1fr); }
   .provider-portfolio-layout { grid-template-columns: minmax(0, 1fr); }
+  .provider-availability-layout { grid-template-columns: minmax(0, 1fr); }
   .dashboard-discover { min-height: 0; }
 }
 
@@ -239,6 +246,7 @@
   .dashboard-stats article { grid-template-columns: 1fr auto; align-items: center; }
   .dashboard-stats article strong { grid-column: 2; grid-row: 1 / span 2; }
   .dashboard-panel { padding: 16px; }
+  .provider-schedule-form__grid { grid-template-columns: minmax(0, 1fr); }
   .dashboard-panel__heading--stack-mobile { align-items: flex-start; flex-direction: column; }
   .dashboard-tabs { width: 100%; overflow-x: auto; }
   .appointment-row { grid-template-columns: minmax(0, 1fr) auto; gap: 9px 12px; }
