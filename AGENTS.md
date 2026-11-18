@@ -46,6 +46,7 @@ Before finishing, run lint and build (and tests, if configured).
 - Pages compose the screen, hooks own state and effects, services own HTTP calls and API-to-UI mapping. Shared components contain no domain rules.
 - Use the existing fetch helpers and auth context for all HTTP and session handling. Do not call `fetch` directly from pages or components.
 - Promote code to `shared` only when there is real reuse.
+- Routing: never hand-build URLs in pages or components. Use `ROUTE_PATHS` and the helpers in `src/core/router/paths.js` (add a helper for any new parameterised route). Public pages go under `PublicLayout`, private pages under `/app/...` in `AppLayout`. Build static asset URLs from `import.meta.env.BASE_URL`. Details: `ARCHITECTURE.md` section 9.
 - Use `src/modules/schedules/` as the small-module reference: `services/schedules.service.js` owns schedule endpoint calls, and `hooks/useProviderSchedule.js` owns loading, form state, save, and removal. `src/modules/dashboard/pages/ProviderDashboardPage.jsx` composes that hook into the UI. Keep API calls in services and async/UI state in hooks.
 
 ## UI behavior
@@ -66,7 +67,10 @@ Before finishing, run lint and build (and tests, if configured).
 ## Booking behavior in the UI
 
 - The frontend may pre-check availability for UX, but the backend is the real guard against double booking. Always handle a `409` conflict response gracefully (message plus refreshed availability).
-- The appointment API accepts `PENDENTE`, `CONFIRMADO`, `CANCELADO`, and `CONCLUIDO` status values. Status updates are provider/admin operations; the current API has no appointment reschedule endpoint and no client cancellation action. Do not invent those flows in the UI. Show the backend's error message when an action is refused.
+- The appointment API accepts `PENDENTE`, `CONFIRMADO`, `CANCELADO`, and `CONCLUIDO` status values. Clients and providers can cancel their own appointments with a required reason; providers can also confirm and complete appointments assigned to them. The backend records who cancelled, and automatically cancels expired pending appointments.
+- Both appointment participants can leave one service-specific review after completion. Providers who book another provider's service can manage that appointment as the client participant.
+- Authenticated clients and providers can send suggestions from a provider profile; providers can read suggestions received on their own profile.
+- Password recovery uses SMTP configured on the backend; the frontend never handles SMTP credentials. Show the backend's error message when an action is refused.
 
 ## Git and safety
 

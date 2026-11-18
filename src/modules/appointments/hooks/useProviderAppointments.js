@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getErrorMessage } from '../../../core/http/http-error';
-import { listAppointments, updateAppointmentStatus } from '../services/appointments.service';
+import {
+  createAppointmentReview,
+  listAppointments,
+  updateAppointmentStatus,
+} from '../services/appointments.service';
 
 export function useProviderAppointments({ token }) {
   const [appointments, setAppointments] = useState([]);
@@ -36,18 +40,41 @@ export function useProviderAppointments({ token }) {
     return () => window.clearTimeout(timeoutId);
   }, [loadAppointments]);
 
-  const changeAppointmentStatus = async (appointmentId, status) => {
+  useEffect(() => {
+    if (!feedbackMessage) return undefined;
+    const timeoutId = window.setTimeout(() => setFeedbackMessage(''), 4000);
+    return () => window.clearTimeout(timeoutId);
+  }, [feedbackMessage]);
+
+  const changeAppointmentStatus = async (appointmentId, status, reason = '') => {
     setIsSubmitting(true);
     setErrorMessage('');
     setFeedbackMessage('');
 
     try {
-      await updateAppointmentStatus(appointmentId, status, token);
+      await updateAppointmentStatus(appointmentId, status, token, reason);
       setFeedbackMessage('Status atualizado com sucesso.');
       await loadAppointments();
       return true;
     } catch (error) {
       setErrorMessage(getErrorMessage(error, 'Não foi possível atualizar o status do agendamento.'));
+      return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const reviewAppointment = async (appointmentId, payload) => {
+    setIsSubmitting(true);
+    setErrorMessage('');
+    setFeedbackMessage('');
+    try {
+      await createAppointmentReview(appointmentId, payload, token);
+      setFeedbackMessage('Avaliação enviada com sucesso.');
+      await loadAppointments();
+      return true;
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, 'Não foi possível enviar a avaliação.'));
       return false;
     } finally {
       setIsSubmitting(false);
@@ -62,5 +89,6 @@ export function useProviderAppointments({ token }) {
     isLoading,
     isSubmitting,
     loadAppointments,
+    reviewAppointment,
   };
 }

@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getErrorMessage } from '../../../core/http/http-error';
 import { appointmentDateTimeToIso, calculateAppointmentEnd } from '../../../shared/utils/format';
-import { createAppointment, listAppointments } from '../services/appointments.service';
+import {
+  createAppointment,
+  createAppointmentReview,
+  listAppointments,
+  updateAppointmentStatus,
+} from '../services/appointments.service';
 
 export function useClientAppointments({ clientId, token }) {
   const [appointments, setAppointments] = useState([]);
@@ -79,6 +84,40 @@ export function useClientAppointments({ clientId, token }) {
     }
   };
 
+  const changeAppointmentStatus = async (id, status, reason = '') => {
+    setIsSubmitting(true);
+    setErrorMessage('');
+    setFeedbackMessage('');
+    try {
+      await updateAppointmentStatus(id, status, token, reason);
+      setFeedbackMessage(status === 'CANCELADO' ? 'Agendamento cancelado.' : 'Status atualizado.');
+      await loadAppointments();
+      return true;
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, 'Não foi possível atualizar o agendamento.'));
+      return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const reviewAppointment = async (id, payload) => {
+    setIsSubmitting(true);
+    setErrorMessage('');
+    setFeedbackMessage('');
+    try {
+      await createAppointmentReview(id, payload, token);
+      setFeedbackMessage('Avaliação enviada com sucesso.');
+      await loadAppointments();
+      return true;
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, 'Não foi possível enviar a avaliação.'));
+      return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return {
     appointments,
     errorMessage,
@@ -86,6 +125,8 @@ export function useClientAppointments({ clientId, token }) {
     isLoading,
     isSubmitting,
     loadAppointments,
+    changeAppointmentStatus,
     requestAppointment,
+    reviewAppointment,
   };
 }

@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { ROUTE_PATHS } from '../../../core/router/paths';
 import BrandLogo from '../../../shared/components/BrandLogo';
+import ThemeToggle from '../../../shared/components/ThemeToggle';
 import { useAuthActions } from '../hooks/useAuthActions';
 
 const INITIAL_LOGIN_FORM = {
@@ -54,6 +55,8 @@ export default function LoginPage() {
         </button>
       </aside>
 
+      <ThemeToggle className="theme-toggle--floating" />
+
       <section className="auth-form-panel">
         <div className="auth-form-box">
           <button className="auth-mobile-back" type="button" onClick={() => setShowMobileAccountScreen(false)}>
@@ -98,6 +101,9 @@ export default function LoginPage() {
 
           <p className="auth-card__footer">
             Ainda não tem conta? <Link to={ROUTE_PATHS.register}>Cadastre-se</Link>
+          </p>
+          <p className="auth-card__footer">
+            Esqueceu sua senha? <Link to={ROUTE_PATHS.passwordRecovery}>Recuperar senha</Link>
           </p>
         </div>
       </section>

@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getErrorMessage } from '../../../core/http/http-error';
 import { normalizeScheduleItems, WEEK_DAYS } from '../../../shared/utils/format';
-import { getProviderSchedule, removeProviderScheduleDay, saveProviderScheduleDay } from '../services/schedules.service';
+import {
+  getProviderSchedule,
+  removeProviderScheduleInterval,
+  saveProviderScheduleDay,
+  updateProviderScheduleInterval,
+} from '../services/schedules.service';
 
 const INITIAL_FORM = {
-  diaSelecionado: 'Segunda',
+  diaSelecionado: '1',
   horaInicio: '08:00',
   horaFim: '18:00',
 };
@@ -12,6 +17,7 @@ const INITIAL_FORM = {
 export function useProviderSchedule({ providerId, token }) {
   const [scheduleItems, setScheduleItems] = useState([]);
   const [formValues, setFormValues] = useState(INITIAL_FORM);
+  const [editingScheduleId, setEditingScheduleId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -53,40 +59,72 @@ export function useProviderSchedule({ providerId, token }) {
 
   const submitSchedule = async (event) => {
     event.preventDefault();
-    setIsSubmitting(true);
     setErrorMessage('');
     setFeedbackMessage('');
 
+    if (formValues.horaInicio >= formValues.horaFim) {
+      setErrorMessage('O horário de encerramento deve ser posterior ao horário de início.');
+      return false;
+    }
+
+    setIsSubmitting(true);
     try {
-      await saveProviderScheduleDay(providerId, {
-        dias_atendimento: formValues.diaSelecionado,
+      const payload = {
+        dia_semana: Number(formValues.diaSelecionado),
         horario_inicio: formValues.horaInicio,
         horario_fim: formValues.horaFim,
-      }, token);
+      };
 
-      setFeedbackMessage('Horário salvo com sucesso.');
+      if (editingScheduleId) {
+        await updateProviderScheduleInterval(providerId, editingScheduleId, payload, token);
+      } else {
+        await saveProviderScheduleDay(providerId, payload, token);
+      }
+
+      setFeedbackMessage(editingScheduleId ? 'Disponibilidade atualizada.' : 'Disponibilidade adicionada.');
+      setEditingScheduleId(null);
+      setFormValues(INITIAL_FORM);
       await loadSchedule();
       return true;
     } catch (error) {
-      setErrorMessage(getErrorMessage(error, 'Não foi possível salvar o horário.'));
+      setErrorMessage(getErrorMessage(error, 'Não foi possível salvar a disponibilidade.'));
       return false;
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const removeScheduleDay = async (day) => {
+  const editScheduleInterval = (schedule) => {
+    setEditingScheduleId(schedule.id_horario);
+    setFormValues({
+      diaSelecionado: String(schedule.dia_semana),
+      horaInicio: String(schedule.hora_inicio).slice(0, 5),
+      horaFim: String(schedule.hora_fim).slice(0, 5),
+    });
+    setErrorMessage('');
+    setFeedbackMessage('');
+  };
+
+  const cancelEditing = () => {
+    setEditingScheduleId(null);
+    setFormValues(INITIAL_FORM);
+    setErrorMessage('');
+    setFeedbackMessage('');
+  };
+
+  const removeScheduleInterval = async (scheduleId) => {
     setIsSubmitting(true);
     setErrorMessage('');
     setFeedbackMessage('');
 
     try {
-      await removeProviderScheduleDay(providerId, day, token);
-      setFeedbackMessage('Dia removido com sucesso.');
+      await removeProviderScheduleInterval(providerId, scheduleId, token);
+      setFeedbackMessage('Disponibilidade removida.');
+      if (editingScheduleId === scheduleId) cancelEditing();
       await loadSchedule();
       return true;
     } catch (error) {
-      setErrorMessage(getErrorMessage(error, 'Não foi possível remover o dia da agenda.'));
+      setErrorMessage(getErrorMessage(error, 'Não foi possível remover esta disponibilidade.'));
       return false;
     } finally {
       setIsSubmitting(false);
@@ -94,14 +132,20 @@ export function useProviderSchedule({ providerId, token }) {
   };
 
   return {
-    days: WEEK_DAYS,
+    days: WEEK_DAYS.map((label, index) => ({
+      value: String((index + 1) % 7),
+      label,
+    })),
+    cancelEditing,
+    editScheduleInterval,
+    editingScheduleId,
     errorMessage,
     feedbackMessage,
     formValues,
     isLoading,
     isSubmitting,
     loadSchedule,
-    removeScheduleDay,
+    removeScheduleInterval,
     scheduleItems,
     submitSchedule,
     updateField,

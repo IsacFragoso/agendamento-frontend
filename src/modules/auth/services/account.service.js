@@ -27,3 +27,9 @@ export const changeAccountPassword = (userId, payload, token) => requestHelper(`
   token,
   body: JSON.stringify(payload),
 });
+
+export const becomeProvider = (userId, payload, token) => requestHelper(`/usuarios/${userId}/tornar-prestador`, {
+  method: 'POST',
+  token,
+  body: JSON.stringify(payload),
+});

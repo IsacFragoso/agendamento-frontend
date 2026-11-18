@@ -1,27 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, Camera, Check, CheckCircle2, LoaderCircle, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
-import { getProviderPath } from '../../../core/router/paths';
 import { useAuth } from '../../../core/store/use-auth';
-import { useProviderAppointments } from '../../appointments/hooks/useProviderAppointments';
 import { useProviderServices } from '../../services/hooks/useProviderServices';
-import { formatCurrency, formatDate, formatTime } from '../../../shared/utils/format';
+import { formatCurrency } from '../../../shared/utils/format';
 import ImageAdjustDialog from '../../../shared/components/ImageAdjustDialog';
 import { getProviderAccount, uploadProviderBanner } from '../services/provider-location.service';
 import './ProviderPortfolioPage.css';
 
-const PROFILE_PHOTO_PLACEHOLDER = '/images/user-placeholder.jpg';
+const SERVICES_PER_PAGE = 5;
+
 const NOTICE_DURATION_MS = 4500;
 const MAX_NOTICES = 3;
-const STATUS_LABELS = {
-  PENDENTE: 'Pendente',
-  CONFIRMADO: 'Confirmada',
-  CONCLUIDO: 'Concluída',
-  CANCELADO: 'Cancelada',
-  NAO_COMPARECEU: 'Não compareceu',
-};
 const serviceId = (service) => service.id_servico || service.id;
-const appointmentId = (appointment) => appointment.id_agendamento || appointment.id;
 
 function ServiceEditDialog({ service, categories, onClose, onSave, isSaving, error }) {
   const [values, setValues] = useState({
@@ -107,11 +97,13 @@ function ServiceDetailsDialog({ service, onClose }) {
 export default function ProviderPortfolioPage() {
   const { token, user } = useAuth();
   const services = useProviderServices({ providerId: user?.id, token });
-  const appointments = useProviderAppointments({ token });
   const [showAddForm, setShowAddForm] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageCount = Math.max(1, Math.ceil(services.services.length / SERVICES_PER_PAGE));
+  const currentPage = Math.min(page, pageCount);
+  const pagedServices = services.services.slice((currentPage - 1) * SERVICES_PER_PAGE, currentPage * SERVICES_PER_PAGE);
   const [editingService, setEditingService] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
-  const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [updatingServiceId, setUpdatingServiceId] = useState(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
@@ -178,12 +170,6 @@ export default function ProviderPortfolioPage() {
 
   const dismissNotice = (id) => setNotices((current) => current.filter((notice) => notice.id !== id));
 
-  const recentAppointments = useMemo(() => (
-    [...appointments.appointments]
-      .sort((first, second) => new Date(second.data_hora_inicio) - new Date(first.data_hora_inicio))
-      .slice(0, 5)
-  ), [appointments.appointments]);
-
   const changeActive = async (service) => {
     const id = serviceId(service);
     const isActivating = !service.ativo;
@@ -212,10 +198,10 @@ export default function ProviderPortfolioPage() {
   };
 
   const removeService = async (service) => {
-    if (!window.confirm(`Excluir o serviço "${service.titulo}"?`)) return;
-    const noticeId = addNotice('pending', 'Excluindo serviço...');
+    if (!window.confirm(`Arquivar o serviço "${service.titulo}"? Os agendamentos existentes serão preservados.`)) return;
+    const noticeId = addNotice('pending', 'Arquivando serviço...');
     if (await services.removeService(serviceId(service))) {
-      updateNotice(noticeId, 'success', 'Serviço excluído.');
+      updateNotice(noticeId, 'success', 'Serviço arquivado; agendamentos preservados.');
     } else {
       dismissNotice(noticeId);
     }
@@ -267,8 +253,6 @@ export default function ProviderPortfolioPage() {
     }
   };
 
-  const appointmentStatus = (status) => STATUS_LABELS[String(status || '').toUpperCase()] || status || 'Indisponível';
-
   return (
     <div className="page-stack provider-portfolio-page">
       <header className="portfolio-page-heading">
@@ -316,8 +300,8 @@ export default function ProviderPortfolioPage() {
         })}
       </div>
 
-      {services.errorMessage || appointments.errorMessage ? (
-        <p className="feedback feedback--danger" role="alert">{services.errorMessage || appointments.errorMessage}</p>
+      {services.errorMessage ? (
+        <p className="feedback feedback--danger" role="alert">{services.errorMessage}</p>
       ) : null}
 
       <section className="card portfolio-services" aria-labelledby="portfolio-services-heading">
@@ -325,6 +309,11 @@ export default function ProviderPortfolioPage() {
           <div><h2 id="portfolio-services-heading">Seus serviços</h2><p>Gerencie os serviços disponíveis para agendamento.</p></div>
           <span className="portfolio-count">{services.services.length} serviços</span>
         </div>
+        <button className="button button--primary portfolio-add-button" type="button" onClick={() => setShowAddForm(true)}>
+          <Plus size={16} aria-hidden="true" />
+          Adicionar novo serviço
+        </button>
+
         {services.isLoading ? <p className="meta-text">Carregando serviços...</p> : null}
         {!services.isLoading && services.services.length === 0 ? <p className="empty-state">Você ainda não publicou serviços.</p> : null}
 
@@ -333,7 +322,7 @@ export default function ProviderPortfolioPage() {
             <table className="table portfolio-service-table">
               <thead><tr><th>Serviço</th><th>Duração</th><th>Preço</th><th>Status</th><th className="portfolio-actions-heading">Ações</th></tr></thead>
               <tbody>
-                {services.services.map((service) => (
+                {pagedServices.map((service) => (
                   <tr key={serviceId(service)}>
                     <td><strong>{service.titulo}</strong>{service.categoria?.nome ? <small>{service.categoria.nome}</small> : null}</td>
                     <td>{service.duracao_padrao} min</td>
@@ -346,7 +335,7 @@ export default function ProviderPortfolioPage() {
                     <td><div className="portfolio-actions">
                       <button className="portfolio-action portfolio-action--view" type="button" title={`Visualizar ${service.titulo}`} onClick={() => setSelectedService(service)}><Search size={16} aria-hidden="true" /><span>Visualizar</span></button>
                       <button className="portfolio-action" type="button" onClick={() => setEditingService(service)}><Pencil size={14} aria-hidden="true" />Editar</button>
-                      <button className="portfolio-action is-danger" type="button" onClick={() => removeService(service)}><Trash2 size={14} aria-hidden="true" />Excluir</button>
+                      <button className="portfolio-action is-danger" type="button" onClick={() => removeService(service)}><Trash2 size={14} aria-hidden="true" />Arquivar</button>
                     </div></td>
                   </tr>
                 ))}
@@ -354,54 +343,47 @@ export default function ProviderPortfolioPage() {
             </table>
           </div>
         ) : null}
-
-        <button className="button button--primary portfolio-add-button" type="button" onClick={() => setShowAddForm((visible) => !visible)}>
-          {showAddForm ? <X size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
-          {showAddForm ? 'Cancelar' : 'Adicionar novo serviço'}
-        </button>
-        {showAddForm ? (
-          <form className="portfolio-add-form" onSubmit={addService}>
-            <label className="field"><span>Nome do serviço</span><input value={services.formValues.titulo} onChange={(event) => services.updateField('titulo', event.target.value)} minLength="2" required /></label>
-            <label className="field"><span>Descrição</span><textarea value={services.formValues.descricao} onChange={(event) => services.updateField('descricao', event.target.value)} rows="2" required /></label>
-            <div className="portfolio-add-fields">
-              <label className="field"><span>Duração (minutos)</span><input type="number" min="1" value={services.formValues.duracao_padrao} onChange={(event) => services.updateField('duracao_padrao', event.target.value)} required /></label>
-              <label className="field"><span>Preço (R$)</span><input type="number" min="0" step="0.01" value={services.formValues.preco} onChange={(event) => services.updateField('preco', event.target.value)} required /></label>
-              <label className="field"><span>Categoria</span><select value={services.formValues.id_categoria} onChange={(event) => services.updateField('id_categoria', event.target.value)} required><option value="">Selecione</option>{services.categories.map((category) => <option key={category.id_categoria} value={category.id_categoria}>{category.nome}</option>)}</select></label>
-            </div>
-            <button className="button button--primary" type="submit" disabled={services.isSubmitting}>{services.isSubmitting ? 'Publicando...' : 'Publicar serviço'}</button>
-          </form>
+        {pageCount > 1 ? (
+          <nav className="portfolio-pagination" aria-label="Paginação de serviços">
+            <button type="button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>Anterior</button>
+            <span>Página {currentPage} de {pageCount}</span>
+            <button type="button" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>Próxima</button>
+          </nav>
         ) : null}
       </section>
 
-      <section className="portfolio-history" aria-labelledby="portfolio-history-heading">
-        <div className="portfolio-section-heading">
-          <div><h2 id="portfolio-history-heading">Histórico recente</h2><p>Últimos atendimentos e solicitações.</p></div>
-          <Link to={getProviderPath('historico')} className="portfolio-history-link">Histórico completo <span aria-hidden="true">→</span></Link>
+      {showAddForm ? (
+        <div className="portfolio-dialog-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setShowAddForm(false);
+        }}>
+          <section className="portfolio-dialog" role="dialog" aria-modal="true" aria-labelledby="portfolio-add-title">
+            <header className="portfolio-dialog-heading">
+              <h2 id="portfolio-add-title">Novo serviço</h2>
+              <button className="portfolio-icon-button" type="button" onClick={() => setShowAddForm(false)} aria-label="Fechar"><X size={18} aria-hidden="true" /></button>
+            </header>
+            {services.errorMessage ? <p className="feedback feedback--danger" role="alert">{services.errorMessage}</p> : null}
+            <form className="portfolio-form" onSubmit={addService}>
+              <label className="field"><span>Nome do serviço</span><input value={services.formValues.titulo} onChange={(event) => services.updateField('titulo', event.target.value)} minLength="2" required autoFocus /></label>
+              <label className="field"><span>Descrição</span><textarea value={services.formValues.descricao} onChange={(event) => services.updateField('descricao', event.target.value)} rows="3" required /></label>
+              <div className="portfolio-form-grid">
+                <label className="field"><span>Duração (minutos)</span><input type="number" min="1" value={services.formValues.duracao_padrao} onChange={(event) => services.updateField('duracao_padrao', event.target.value)} required /></label>
+                <label className="field"><span>Preço (R$)</span><input type="number" min="0" step="0.01" value={services.formValues.preco} onChange={(event) => services.updateField('preco', event.target.value)} required /></label>
+              </div>
+              <label className="field">
+                <span>Categoria</span>
+                <select value={services.formValues.id_categoria} onChange={(event) => services.updateField('id_categoria', event.target.value)} required>
+                  <option value="">Selecione uma categoria</option>
+                  {services.categories.map((category) => <option key={category.id_categoria} value={category.id_categoria}>{category.nome}</option>)}
+                </select>
+              </label>
+              <div className="portfolio-dialog-actions">
+                <button className="button button--secondary" type="button" onClick={() => setShowAddForm(false)}>Cancelar</button>
+                <button className="button button--primary" type="submit" disabled={services.isSubmitting}><Check size={16} aria-hidden="true" />{services.isSubmitting ? 'Publicando...' : 'Publicar serviço'}</button>
+              </div>
+            </form>
+          </section>
         </div>
-        {appointments.isLoading ? <p className="meta-text">Carregando histórico...</p> : null}
-        {!appointments.isLoading && recentAppointments.length === 0 ? <p className="empty-state">Seus agendamentos aparecerão aqui.</p> : null}
-        {recentAppointments.length > 0 ? (
-          <div className="table-wrapper portfolio-table-scroll">
-            <table className="table portfolio-history-table">
-              <thead><tr><th>Cliente</th><th>Serviço</th><th>Data e hora</th><th>Status</th><th>Ação</th></tr></thead>
-              <tbody>{recentAppointments.map((appointment) => {
-                const normalizedStatus = String(appointment.status || '').toUpperCase();
-                const tone = normalizedStatus === 'CANCELADO' ? 'danger' : normalizedStatus === 'PENDENTE' ? 'warning' : normalizedStatus === 'CONCLUIDO' ? 'success' : 'neutral';
-                return (
-                  <tr key={appointmentId(appointment)}>
-                    <td><div className="portfolio-client"><img src={appointment.cliente?.foto_perfil || PROFILE_PHOTO_PLACEHOLDER} alt="" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = PROFILE_PHOTO_PLACEHOLDER; }} /><strong>{appointment.cliente?.nome_completo || 'Cliente'}</strong></div></td>
-                    <td className="portfolio-history-service">{appointment.servico?.titulo || 'Serviço não informado'}</td>
-                    <td><span className="portfolio-date">{formatDate(appointment.data_hora_inicio)}</span><small className="portfolio-time">{formatTime(appointment.data_hora_inicio)}</small></td>
-                    <td><span className={`status-badge status-badge--${tone}`}>{appointmentStatus(appointment.status)}</span></td>
-                    <td><button className="portfolio-details-button" type="button" onClick={() => setSelectedAppointment(appointment)}>Detalhes</button></td>
-                  </tr>
-                );
-              })}</tbody>
-            </table>
-          </div>
-        ) : null}
-      </section>
-
+      ) : null}
       {editingService ? <ServiceEditDialog service={editingService} categories={services.categories} onClose={() => setEditingService(null)} onSave={saveEdit} isSaving={isSavingEdit} error={services.errorMessage} /> : null}
       {selectedService ? <ServiceDetailsDialog service={selectedService} onClose={() => setSelectedService(null)} /> : null}
       {bannerToAdjust ? (
@@ -412,15 +394,6 @@ export default function ProviderPortfolioPage() {
           onSave={saveAdjustedBanner}
           isSaving={isUploadingBanner}
         />
-      ) : null}
-      {selectedAppointment ? (
-        <div className="portfolio-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedAppointment(null); }}>
-          <section className="portfolio-dialog" role="dialog" aria-modal="true" aria-labelledby="portfolio-details-heading">
-            <header className="portfolio-dialog-heading"><h2 id="portfolio-details-heading">Detalhes do agendamento</h2><button className="portfolio-icon-button" type="button" onClick={() => setSelectedAppointment(null)} aria-label="Fechar detalhes"><X size={18} aria-hidden="true" /></button></header>
-            <dl className="portfolio-details"><div><dt>Cliente</dt><dd>{selectedAppointment.cliente?.nome_completo || 'Cliente'}</dd></div><div><dt>Serviço</dt><dd>{selectedAppointment.servico?.titulo || 'Serviço não informado'}</dd></div><div><dt>Data e horário</dt><dd>{formatDate(selectedAppointment.data_hora_inicio)} às {formatTime(selectedAppointment.data_hora_inicio)}</dd></div><div><dt>Status</dt><dd>{appointmentStatus(selectedAppointment.status)}</dd></div></dl>
-            <button className="button button--secondary portfolio-close-button" type="button" onClick={() => setSelectedAppointment(null)}>Fechar</button>
-          </section>
-        </div>
       ) : null}
     </div>
   );
