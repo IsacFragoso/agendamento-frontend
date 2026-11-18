@@ -59,7 +59,9 @@ Aplicação web SPA para o sistema acadêmico de agendamento, com autenticação
 
 ### Publicação no GitHub Pages
 
-O GitHub Pages hospeda somente o frontend. Depois de publicar a API em um host como Render, defina `VITE_API_BASE_URL` com a URL pública terminada em `/api` antes do build e da publicação:
+O GitHub Pages hospeda somente o frontend. Publique primeiro a API e confirme que ela responde em `/api/health`. Depois, no repositório do frontend, acesse **Settings → Secrets and variables → Actions → Variables** e crie a variável `VITE_API_BASE_URL` com a URL pública HTTPS da API terminada em `/api` (por exemplo, `https://<servico>.onrender.com/api`). O workflow de publicação usa essa variável no build e interrompe a publicação se ela estiver ausente ou inválida, evitando gerar um site que tente acessar `localhost`.
+
+Para publicar manualmente usando o script local, defina a mesma variável antes do build e da publicação:
 
 ```powershell
 $env:VITE_API_BASE_URL = 'https://<servico>.onrender.com/api'
@@ -176,7 +178,9 @@ This repository contains the single-page web app for the school appointment-book
 
 ### Publishing on GitHub Pages
 
-GitHub Pages hosts only the frontend. After deploying the API to a host such as Render, set `VITE_API_BASE_URL` to its public URL ending in `/api` before building and publishing:
+GitHub Pages hosts only the frontend. Deploy the API first and confirm that `/api/health` responds. Then, in the frontend repository, go to **Settings → Secrets and variables → Actions → Variables** and create the `VITE_API_BASE_URL` variable with the API's public HTTPS URL ending in `/api` (for example, `https://<service>.onrender.com/api`). The deployment workflow uses this variable at build time and stops if it is missing or invalid, preventing a site from being built to call `localhost`.
+
+To publish manually with the local script, set the same variable before building and publishing:
 
 ```powershell
 $env:VITE_API_BASE_URL = 'https://<service>.onrender.com/api'
