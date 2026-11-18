@@ -177,7 +177,7 @@ export default function ProviderPortfolioPage() {
     setUpdatingServiceId(id);
     const result = await services.updateServiceRecord(id, { ativo: isActivating });
     if (result.succeeded) {
-      updateNotice(noticeId, 'success', isActivating ? 'Serviço ativado.' : 'Serviço pausado.');
+      updateNotice(noticeId, isActivating ? 'success' : 'warning', isActivating ? 'Serviço ativado.' : 'Serviço pausado.');
     } else {
       dismissNotice(noticeId);
     }
@@ -287,7 +287,7 @@ export default function ProviderPortfolioPage() {
 
       <div className="portfolio-toast-stack" aria-live="polite" aria-relevant="additions text">
         {notices.map((notice) => {
-          const NoticeIcon = notice.kind === 'success' ? CheckCircle2 : notice.kind === 'error' ? AlertCircle : LoaderCircle;
+          const NoticeIcon = notice.kind === 'success' || notice.kind === 'warning' ? CheckCircle2 : notice.kind === 'error' ? AlertCircle : LoaderCircle;
           return (
             <div className={`portfolio-toast portfolio-toast--${notice.kind}`} key={notice.id} role={notice.kind === 'error' ? 'alert' : 'status'}>
               <NoticeIcon className={notice.kind === 'pending' ? 'portfolio-toast__spinner' : ''} size={18} aria-hidden="true" />

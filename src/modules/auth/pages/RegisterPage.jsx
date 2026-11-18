@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, UserPlus } from 'lucide-react';
 import { ROUTE_PATHS } from '../../../core/router/paths';
 import { useAuthActions } from '../hooks/useAuthActions';
+import ThemeToggle from '../../../shared/components/ThemeToggle';
 
 const PHONE_DIGIT_LIMIT = 11;
 const PHONE_PATTERN = /^\(\d{2}\) \d{5} - \d{4}$/;
@@ -121,8 +122,9 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="auth-page">
-      <section className="auth-card">
+    <main className="auth-page auth-page--register">
+      <ThemeToggle className="theme-toggle--floating" />
+      <section className="auth-card register-card" aria-labelledby="register-title">
         <div className="auth-card__topbar">
           <span className="eyebrow">Cadastro</span>
           <Link
@@ -134,7 +136,10 @@ export default function RegisterPage() {
             <ArrowLeft size={22} aria-hidden="true" />
           </Link>
         </div>
-        <h1>Criar conta</h1>
+        <div className="register-card__icon" aria-hidden="true">
+          <UserPlus size={28} />
+        </div>
+        <h1 id="register-title">Criar conta</h1>
         <p className="auth-card__subtitle">Crie sua conta para encontrar profissionais e agendar serviços.</p>
 
         {formError ? <p className="feedback feedback--danger" role="alert">{formError}</p> : null}
@@ -237,6 +242,6 @@ export default function RegisterPage() {
           Já possui conta? <Link to={ROUTE_PATHS.login}>Voltar para login</Link>
         </p>
       </section>
-    </div>
+    </main>
   );
 }

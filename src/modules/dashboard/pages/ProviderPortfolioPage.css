@@ -122,6 +122,14 @@
   color: var(--color-success);
 }
 
+.portfolio-toast--warning {
+  border-left-color: var(--color-warning);
+}
+
+.portfolio-toast--warning > svg {
+  color: var(--color-warning);
+}
+
 .portfolio-toast--error {
   border-left-color: var(--color-danger);
 }

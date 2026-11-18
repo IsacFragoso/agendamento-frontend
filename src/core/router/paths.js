@@ -6,6 +6,7 @@ export const ROUTE_PATHS = {
   providerBooking: '/profissionais/:providerId/agendar/:serviceId',
   login: '/login',
   register: '/cadastro',
+  emailVerification: '/verificar-email',
   passwordRecovery: '/recuperar-senha',
   app: '/app',
   dashboard: '/app/dashboard',

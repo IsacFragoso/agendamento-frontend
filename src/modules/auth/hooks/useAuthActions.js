@@ -40,10 +40,11 @@ export function useAuthActions() {
 
     try {
       const payload = await registerUser(values);
-      navigate(ROUTE_PATHS.login, {
+      navigate(ROUTE_PATHS.emailVerification, {
         replace: true,
         state: {
-          message: payload?.mensagem || 'Conta criada com sucesso. Faça login para continuar.',
+          email: values.email,
+          message: payload?.message || payload?.mensagem || 'Conta criada. Verifique seu e-mail para ativar o acesso.',
           from: location.state?.from,
         },
       });

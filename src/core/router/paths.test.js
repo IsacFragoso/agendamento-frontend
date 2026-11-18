@@ -14,4 +14,8 @@ describe('getDashboardPathForAccountType', () => {
   it('exposes password recovery to unauthenticated users', () => {
     expect(ROUTE_PATHS.passwordRecovery).toBe('/recuperar-senha');
   });
+
+  it('exposes email verification to unauthenticated users', () => {
+    expect(ROUTE_PATHS.emailVerification).toBe('/verificar-email');
+  });
 });
