@@ -108,7 +108,24 @@ export const calculateAppointmentEnd = (date, time, durationInMinutes) => {
 
 export const normalizeScheduleItems = (payload) => {
   if (Array.isArray(payload)) {
-    return payload;
+    const dayOrder = [1, 2, 3, 4, 5, 6, 0];
+    return payload
+      .map((item) => ({
+        ...item,
+        dia_semana: Number(item.dia_semana),
+        hora_inicio: String(item.hora_inicio || '').slice(0, 5),
+        hora_fim: String(item.hora_fim || '').slice(0, 5),
+      }))
+      .filter((item) => (
+        Number.isInteger(item.dia_semana)
+        && item.hora_inicio
+        && item.hora_fim
+      ))
+      .sort((left, right) => (
+        dayOrder.indexOf(left.dia_semana) - dayOrder.indexOf(right.dia_semana)
+        || left.hora_inicio.localeCompare(right.hora_inicio)
+        || left.hora_fim.localeCompare(right.hora_fim)
+      ));
   }
 
   if (payload?.dias_atendimento) {

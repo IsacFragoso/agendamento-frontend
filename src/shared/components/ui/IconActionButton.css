@@ -1,0 +1,43 @@
+.icon-action-button {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 34px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-primary);
+  background: var(--color-surface);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.icon-action-button:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.icon-action-button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.icon-action-button--danger {
+  color: var(--color-danger);
+}
+
+.icon-action-button--danger:hover:not(:disabled) {
+  border-color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+.icon-action-button--rated {
+  color: #b7791f;
+  background: #fffaf0;
+}
+
+.icon-action-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

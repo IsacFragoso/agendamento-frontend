@@ -1,16 +1,21 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { Eye, Star } from 'lucide-react';
 import { PROVIDER_SECTIONS, getProviderPath } from '../../../core/router/paths';
 import { useAuth } from '../../../core/store/use-auth';
 import { useProviderAppointments } from '../../appointments/hooks/useProviderAppointments';
 import PageHeader from '../../../shared/components/ui/PageHeader';
 import StatusBadge from '../../../shared/components/ui/StatusBadge';
+import StarRatingInput from '../../../shared/components/ui/StarRatingInput';
+import IconActionButton from '../../../shared/components/ui/IconActionButton';
+import AppointmentDetailsDialog from '../components/AppointmentDetailsDialog';
 import { formatCurrency, formatDate, formatTime } from '../../../shared/utils/format';
 import './dashboards.css';
 
 const appointmentId = (appointment) => appointment.id_agendamento || appointment.id;
 const PANEL_LIMIT = 3;
 const PENDING_PAGE_SIZE = 5;
+const HISTORY_PAGE_SIZE = 10;
 
 export default function ProviderDashboardPage() {
   const { section } = useParams();
@@ -26,6 +31,8 @@ export default function ProviderDashboardPage() {
   const [reviewAppointment, setReviewAppointment] = useState(null);
   const [reviewRating, setReviewRating] = useState('5');
   const [reviewComment, setReviewComment] = useState('');
+  const [providedHistoryPage, setProvidedHistoryPage] = useState(1);
+  const [contractedHistoryPage, setContractedHistoryPage] = useState(1);
 
   useEffect(() => {
     if ((!completionAppointment && !detailsAppointment && !cancelAppointment && !reviewAppointment) || appointments.isSubmitting) return undefined;
@@ -40,6 +47,7 @@ export default function ProviderDashboardPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [completionAppointment, detailsAppointment, cancelAppointment, reviewAppointment, appointments.isSubmitting]);
+
 
   const completeAppointment = async () => {
     const updated = await appointments.changeAppointmentStatus(
@@ -109,6 +117,12 @@ export default function ProviderDashboardPage() {
   const historyAppointments = appointments.appointments
     .filter((item) => ['CONCLUIDO', 'CANCELADO'].includes(item.status))
     .filter((item) => `${appointmentOtherParty(item)} ${item.servico?.titulo || ''}`.toLowerCase().includes(historySearch.toLowerCase()));
+  const providedServices = historyAppointments.filter(
+    (item) => String(item.id_cliente) !== String(user?.id),
+  );
+  const contractedServices = historyAppointments.filter(
+    (item) => String(item.id_cliente) === String(user?.id),
+  );
   const stats = {
     pending: pending.length,
     confirmed: confirmed.length,
@@ -278,20 +292,110 @@ export default function ProviderDashboardPage() {
       ) : null}
 
       {activeSection === 'historico' ? (
-        <section className="dashboard-panel">
-          <div className="dashboard-panel__heading dashboard-panel__heading--stack-mobile"><div><p className="dashboard-eyebrow">Registros</p><h2>Atendimentos anteriores</h2></div><label className="dashboard-search"><span aria-hidden="true">⌕</span><input aria-label="Buscar no histórico" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} placeholder="Buscar cliente ou serviço" /></label></div>
-          <div className="dashboard-table-wrap"><table className="dashboard-table"><thead><tr><th>Cliente / Profissional</th><th>Serviço</th><th>Data e hora</th><th>Valor</th><th>Status</th><th>Ação</th></tr></thead><tbody>{historyAppointments.map((appointment) => {
-            const clientReview = (appointment.avaliacoes || []).find((review) => review.avaliador_tipo === 'CLIENTE');
-            const providerReview = (appointment.avaliacoes || []).find((review) => review.avaliador_tipo === 'PRESTADOR');
-            const isMyBooking = String(appointment.id_cliente) === String(user?.id);
-            return <tr key={appointmentId(appointment)}><td>{appointmentOtherParty(appointment)}</td><td>{appointment.servico?.titulo || 'Serviço'}</td><td>{formatDate(appointment.data_hora_inicio)} · {formatTime(appointment.data_hora_inicio)}</td><td>{formatCurrency(appointment.servico?.preco)}</td><td><StatusBadge status={appointment.status} />{appointment.status === 'CANCELADO' ? <small className="appointment-cancellation-note">{appointment.cancelado_por === 'CLIENTE' ? 'Cancelado pelo cliente' : appointment.cancelado_por === 'PRESTADOR' ? 'Cancelado pelo prestador' : appointment.cancelado_por === 'SISTEMA' ? 'Cancelado pelo sistema' : 'Responsável não informado'} · {appointment.motivo_cancelamento || 'Motivo não informado'}</small> : null}</td><td><div className="client-history__actions">
-              {appointment.status === 'CONCLUIDO' && !providerReview ? <button className="client-history__action" type="button" onClick={() => { setReviewAppointment(appointment); setReviewRating('5'); setReviewComment(''); }}>Avaliar {isMyBooking ? 'profissional' : 'cliente'}</button> : null}
-              {clientReview ? <span className="client-history__review">Cliente avaliou o serviço: {clientReview.nota_estrelas}★ · {clientReview.comentario || 'Sem comentário'}</span> : null}
-              {providerReview ? <span className="client-history__review">Você avaliou: {providerReview.nota_estrelas}★</span> : null}
-              <button className="appointment-action" type="button" onClick={() => setDetailsAppointment(appointment)}>View</button>
-            </div></td></tr>;
-          })}</tbody></table>{!appointments.isLoading && !historyAppointments.length ? <p className="dashboard-empty">Nenhum atendimento anterior encontrado.</p> : null}</div>
-        </section>
+        <div className="provider-history-sections">
+          <div className="dashboard-panel provider-history-toolbar">
+            <div className="dashboard-panel__heading dashboard-panel__heading--stack-mobile">
+              <div><p className="dashboard-eyebrow">Registros</p><h2>Atendimentos anteriores</h2></div>
+              <label className="dashboard-search">
+                <span aria-hidden="true">⌕</span>
+                <input
+                  aria-label="Buscar no histórico"
+                  value={historySearch}
+                  onChange={(event) => {
+                    setHistorySearch(event.target.value);
+                    setProvidedHistoryPage(1);
+                    setContractedHistoryPage(1);
+                  }}
+                  placeholder="Buscar cliente, profissional ou serviço"
+                />
+              </label>
+            </div>
+          </div>
+
+          {[
+            { key: 'provided', title: 'Serviços prestados', empty: 'Nenhum serviço prestado encontrado.', items: providedServices },
+            { key: 'contracted', title: 'Serviços contratados', empty: 'Nenhum serviço contratado encontrado.', items: contractedServices },
+          ].map((historySection) => {
+            const currentPage = historySection.key === 'provided'
+              ? providedHistoryPage
+              : contractedHistoryPage;
+            const pageCount = Math.max(1, Math.ceil(historySection.items.length / HISTORY_PAGE_SIZE));
+            const safePage = Math.min(currentPage, pageCount);
+            const visibleItems = historySection.items.slice(
+              (safePage - 1) * HISTORY_PAGE_SIZE,
+              safePage * HISTORY_PAGE_SIZE,
+            );
+            const setPage = historySection.key === 'provided'
+              ? setProvidedHistoryPage
+              : setContractedHistoryPage;
+            return (
+            <section className="dashboard-panel" key={historySection.key} aria-labelledby={`provider-history-${historySection.key}`}>
+              <div className="dashboard-panel__heading">
+                <div><p className="dashboard-eyebrow">{historySection.key === 'provided' ? 'Como prestador' : 'Como cliente'}</p><h2 id={`provider-history-${historySection.key}`}>{historySection.title}</h2></div>
+                <span className="provider-pending-count">{historySection.items.length}</span>
+              </div>
+              {!appointments.isLoading && !historySection.items.length ? <p className="dashboard-empty">{historySection.empty}</p> : null}
+              {historySection.items.length ? (
+                <div className="dashboard-table-wrap">
+                  <table className="dashboard-table">
+                    <thead><tr><th>{historySection.key === 'provided' ? 'Cliente' : 'Profissional'}</th><th>Serviço</th><th>Data e hora</th><th>Valor</th><th>Status</th><th>Avaliação</th><th>Ação</th></tr></thead>
+                    <tbody>
+                      {visibleItems.map((appointment) => {
+                        const clientReview = (appointment.avaliacoes || []).find((review) => review.avaliador_tipo === 'CLIENTE');
+                        const providerReview = (appointment.avaliacoes || []).find((review) => review.avaliador_tipo === 'PRESTADOR');
+                        const isMyBooking = String(appointment.id_cliente) === String(user?.id);
+                        const displayedReview = historySection.key === 'provided' ? clientReview : clientReview || providerReview;
+                        return (
+                          <tr key={appointmentId(appointment)}>
+                            <td>{appointmentOtherParty(appointment)}</td>
+                            <td>{appointment.servico?.titulo || 'Serviço'}</td>
+                            <td>{formatDate(appointment.data_hora_inicio)} · {formatTime(appointment.data_hora_inicio)}</td>
+                            <td>{formatCurrency(appointment.servico?.preco)}</td>
+                            <td><StatusBadge status={appointment.status} /></td>
+                            <td>
+                              {displayedReview ? (
+                                <span className="history-review-value" title={displayedReview.comentario || 'Sem comentário'}>
+                                  {displayedReview.nota_estrelas}
+                                  <Star size={14} fill="currentColor" aria-hidden="true" />
+                                </span>
+                              ) : (
+                                <span className="history-review-empty">—</span>
+                              )}
+                            </td>
+                            <td>
+                              <div className="history-icon-actions">
+                                {appointment.status === 'CONCLUIDO' && (isMyBooking ? !clientReview : !providerReview) ? (
+                                  <IconActionButton
+                                    label={`Avaliar ${isMyBooking ? 'profissional' : 'cliente'}`}
+                                    icon={<Star size={16} aria-hidden="true" />}
+                                    onClick={() => { setReviewAppointment(appointment); setReviewRating('5'); setReviewComment(''); }}
+                                  />
+                                ) : null}
+                                <IconActionButton
+                                  label="Ver detalhes do atendimento"
+                                  icon={<Eye size={16} aria-hidden="true" />}
+                                  onClick={() => setDetailsAppointment(appointment)}
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+              {historySection.items.length > HISTORY_PAGE_SIZE ? (
+                <nav className="history-pagination" aria-label={`Paginação de ${historySection.title}`}>
+                  <button type="button" disabled={safePage === 1} onClick={() => setPage((page) => Math.max(1, page - 1))}>Anterior</button>
+                  <span>Página {safePage} de {pageCount}</span>
+                  <button type="button" disabled={safePage === pageCount} onClick={() => setPage((page) => Math.min(pageCount, page + 1))}>Próxima</button>
+                </nav>
+              ) : null}
+            </section>
+            );
+          })}
+        </div>
       ) : null}
 
       {completionAppointment ? (
@@ -342,48 +446,10 @@ export default function ProviderDashboardPage() {
       ) : null}
 
       {detailsAppointment ? (
-        <div
-          className="provider-completion-dialog-backdrop"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setDetailsAppointment(null);
-          }}
-        >
-          <section
-            className="provider-completion-dialog provider-appointment-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="provider-appointment-title"
-          >
-            <button className="appointment-dialog-close" type="button" aria-label="Fechar" onClick={() => setDetailsAppointment(null)}>×</button>
-            <h2 id="provider-appointment-title">Detalhes do atendimento</h2>
-            <dl className="provider-appointment-details">
-              <div><dt>Serviço</dt><dd>{detailsAppointment.servico?.titulo || 'Atendimento'}</dd></div>
-              <div><dt>Cliente</dt><dd>{detailsAppointment.cliente?.nome_completo || 'Cliente'}</dd></div>
-              <div><dt>Data</dt><dd>{formatDate(detailsAppointment.data_hora_inicio)}</dd></div>
-              <div><dt>Horário</dt><dd>{formatTime(detailsAppointment.data_hora_inicio)}</dd></div>
-              <div><dt>Duração</dt><dd>{detailsAppointment.servico?.duracao_padrao || '—'} min</dd></div>
-              <div><dt>Valor</dt><dd>{formatCurrency(detailsAppointment.servico?.preco)}</dd></div>
-              {detailsAppointment.data_criacao ? (
-                <div><dt>Solicitado em</dt><dd>{formatDate(detailsAppointment.data_criacao)} às {formatTime(detailsAppointment.data_criacao)}</dd></div>
-              ) : null}
-              {String(detailsAppointment.id_cliente) === String(user?.id) ? <div><dt>Profissional</dt><dd>{detailsAppointment.prestador?.usuario?.nome_completo || 'Profissional'}</dd></div> : null}
-              {detailsAppointment.status === 'CANCELADO' ? <>
-                <div><dt>Motivo do cancelamento</dt><dd>{detailsAppointment.motivo_cancelamento || 'Não informado'}</dd></div>
-                <div><dt>Cancelado por</dt><dd>{detailsAppointment.cancelado_por === 'CLIENTE' ? 'Cliente' : detailsAppointment.cancelado_por === 'PRESTADOR' ? 'Prestador' : detailsAppointment.cancelado_por === 'SISTEMA' ? 'Sistema' : 'Responsável não informado'}</dd></div>
-              </> : null}
-              {(detailsAppointment.avaliacoes || []).map((review) => (
-                <div key={review.id_avaliacao}>
-                  <dt>{review.avaliador_tipo === 'CLIENTE' ? 'Avaliação do cliente sobre o serviço' : 'Avaliação do profissional sobre o cliente'}</dt>
-                  <dd>{review.nota_estrelas} estrelas · {review.comentario || 'Sem comentário'}</dd>
-                </div>
-              ))}
-            </dl>
-            <div className="provider-completion-dialog__actions">
-              <button className="button button--primary" type="button" onClick={() => setDetailsAppointment(null)}>Fechar</button>
-            </div>
-          </section>
-        </div>
+        <AppointmentDetailsDialog
+          appointment={detailsAppointment}
+          onClose={() => setDetailsAppointment(null)}
+        />
       ) : null}
 
       {cancelAppointment ? (
@@ -403,7 +469,14 @@ export default function ProviderDashboardPage() {
           <form className="provider-completion-dialog" role="dialog" aria-modal="true" aria-labelledby="provider-review-title" onSubmit={submitReview}>
             <h2 id="provider-review-title">Avaliar {String(reviewAppointment.id_cliente) === String(user?.id) ? 'profissional' : 'cliente'}</h2>
             <p>{appointmentOtherParty(reviewAppointment)} · {reviewAppointment.servico?.titulo || 'Serviço'}</p>
-            <label className="field"><span>Nota</span><select value={reviewRating} onChange={(event) => setReviewRating(event.target.value)}>{[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating} {rating === 1 ? 'estrela' : 'estrelas'}</option>)}</select></label>
+            <div className="field">
+              <span>Nota</span>
+              <StarRatingInput
+                value={reviewRating}
+                onChange={setReviewRating}
+                disabled={appointments.isSubmitting}
+              />
+            </div>
             <label className="field"><span>Comentário (opcional)</span><textarea maxLength={2000} rows={4} value={reviewComment} onChange={(event) => setReviewComment(event.target.value)} /></label>
             {appointments.errorMessage ? <p className="feedback feedback--danger" role="alert">{appointments.errorMessage}</p> : null}
             <div className="provider-completion-dialog__actions"><button className="button button--secondary" type="button" disabled={appointments.isSubmitting} onClick={() => setReviewAppointment(null)}>Voltar</button><button className="button button--primary" type="submit" disabled={appointments.isSubmitting}>{appointments.isSubmitting ? 'Enviando...' : 'Enviar avaliação'}</button></div>

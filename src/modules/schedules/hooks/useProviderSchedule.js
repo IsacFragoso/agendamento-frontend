@@ -51,6 +51,23 @@ export function useProviderSchedule({ providerId, token }) {
   }, [loadSchedule]);
 
   const updateField = (fieldName, value) => {
+    if (fieldName === 'diaSelecionado') {
+      const scheduleForDay = scheduleItems.find(
+        (schedule) => String(schedule.dia_semana) === String(value),
+      );
+      if (scheduleForDay) {
+        setEditingScheduleId(scheduleForDay.id_horario);
+        setFormValues({
+          diaSelecionado: String(value),
+          horaInicio: String(scheduleForDay.hora_inicio).slice(0, 5),
+          horaFim: String(scheduleForDay.hora_fim).slice(0, 5),
+        });
+        setErrorMessage('');
+        setFeedbackMessage('');
+        return;
+      }
+      setEditingScheduleId(null);
+    }
     setFormValues((current) => ({
       ...current,
       [fieldName]: value,
@@ -74,9 +91,13 @@ export function useProviderSchedule({ providerId, token }) {
         horario_inicio: formValues.horaInicio,
         horario_fim: formValues.horaFim,
       };
+      const existingForDay = scheduleItems.find(
+        (schedule) => String(schedule.dia_semana) === String(formValues.diaSelecionado),
+      );
+      const scheduleIdToUpdate = editingScheduleId || existingForDay?.id_horario;
 
-      if (editingScheduleId) {
-        await updateProviderScheduleInterval(providerId, editingScheduleId, payload, token);
+      if (scheduleIdToUpdate) {
+        await updateProviderScheduleInterval(providerId, scheduleIdToUpdate, payload, token);
       } else {
         await saveProviderScheduleDay(providerId, payload, token);
       }

@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
-import { BriefcaseBusiness, CalendarClock, CalendarDays, Clock3, Compass, LayoutDashboard, Settings, User } from 'lucide-react';
+import { BriefcaseBusiness, CalendarDays, Clock3, Compass, LayoutDashboard, Settings, User } from 'lucide-react';
 import { useAuth } from '../../../core/store/use-auth';
 import { getClientPath, getProviderPath, ROUTE_PATHS } from '../../../core/router/paths';
 import BrandLogo from '../BrandLogo';
@@ -22,8 +22,7 @@ const PROVIDER_MENU_ITEMS = [
   MARKETPLACE_MENU_ITEM,
   { label: 'Dashboard', Icon: LayoutDashboard, to: ROUTE_PATHS.dashboard },
   { label: 'Agenda', Icon: CalendarDays, to: getProviderPath('agenda') },
-  { label: 'Disponibilidade', Icon: CalendarClock, to: getProviderPath('disponibilidade') },
-  { label: 'Portfólio', Icon: BriefcaseBusiness, to: ROUTE_PATHS.providerPortfolio },
+  { label: 'Painel Profissional', Icon: BriefcaseBusiness, to: ROUTE_PATHS.providerPortfolio },
   { label: 'Histórico', Icon: Clock3, to: getProviderPath('historico') },
   { label: 'Configurações', Icon: Settings, to: ROUTE_PATHS.settings },
 ];
