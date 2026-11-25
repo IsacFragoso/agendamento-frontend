@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, Camera, Check, CheckCircle2, LoaderCircle, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { AlertCircle, BriefcaseBusiness, Camera, Check, CheckCircle2, Clock3, LoaderCircle, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import { useAuth } from '../../../core/store/use-auth';
 import { useProviderServices } from '../../services/hooks/useProviderServices';
 import { formatCurrency } from '../../../shared/utils/format';
 import ImageAdjustDialog from '../../../shared/components/ImageAdjustDialog';
+import IconActionButton from '../../../shared/components/ui/IconActionButton';
+import DataTable from '../../../shared/components/ui/DataTable';
+import ProviderAvailabilityPage from './ProviderAvailabilityPage';
 import { getProviderAccount, uploadProviderBanner } from '../services/provider-location.service';
+import '../components/AppointmentDetailsDialog.css';
 import './ProviderPortfolioPage.css';
 
 const SERVICES_PER_PAGE = 5;
@@ -70,25 +74,62 @@ function ServiceEditDialog({ service, categories, onClose, onSave, isSaving, err
 
 function ServiceDetailsDialog({ service, onClose }) {
   return (
-    <div className="portfolio-dialog-backdrop" role="presentation" onMouseDown={(event) => {
+    <div className="appointment-details-backdrop" role="presentation" onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose();
     }}>
-      <section className="portfolio-dialog" role="dialog" aria-modal="true" aria-labelledby="portfolio-service-details-title">
-        <header className="portfolio-dialog-heading">
-          <h2 id="portfolio-service-details-title">Detalhes do serviço</h2>
-          <button className="portfolio-icon-button" type="button" onClick={onClose} aria-label="Fechar detalhes do serviço"><X size={18} aria-hidden="true" /></button>
+      <section className="appointment-details-dialog" role="dialog" aria-modal="true" aria-labelledby="portfolio-service-details-title">
+        <header className="appointment-details-header">
+          <div>
+            <h2 id="portfolio-service-details-title">Detalhes do serviço</h2>
+            <p>Informações do serviço profissional</p>
+          </div>
+          <button className="appointment-details-close" type="button" onClick={onClose} aria-label="Fechar detalhes do serviço">
+            <X size={20} aria-hidden="true" />
+          </button>
         </header>
-        <div className="portfolio-service-details-copy">
-          <p className="portfolio-service-details-category">{service.categoria?.nome || 'Sem categoria'}</p>
-          <h3>{service.titulo}</h3>
-          <p className="portfolio-service-details-description">{service.descricao || 'Nenhuma descrição cadastrada.'}</p>
-          <dl className="portfolio-service-details-grid">
-            <div><dt>Preço</dt><dd>{formatCurrency(service.preco)}</dd></div>
-            <div><dt>Duração</dt><dd>{service.duracao_padrao} minutos</dd></div>
-            <div><dt>Status</dt><dd>{service.ativo ? 'Ativo para agendamentos' : 'Pausado'}</dd></div>
-          </dl>
+        <div className="appointment-details-body">
+          <section className="appointment-details-service">
+            <div className="appointment-details-service__icon" aria-hidden="true">
+              <BriefcaseBusiness size={21} />
+            </div>
+            <div>
+              <span>Serviço</span>
+              <strong>{service.titulo}</strong>
+            </div>
+            <div className="appointment-details-service__price">
+              <span>Preço do serviço</span>
+              <strong>{formatCurrency(service.preco)}</strong>
+            </div>
+          </section>
+
+          <section className="appointment-details-section">
+            <h3>Informações</h3>
+            <div className="appointment-details-facts">
+              <article>
+                <Clock3 size={16} aria-hidden="true" />
+                <div><span>Duração</span><strong>{service.duracao_padrao} min</strong></div>
+              </article>
+              <article>
+                <BriefcaseBusiness size={16} aria-hidden="true" />
+                <div><span>Categoria</span><strong>{service.categoria?.nome || 'Sem categoria'}</strong></div>
+              </article>
+              <article>
+                <Check size={16} aria-hidden="true" />
+                <div><span>Status</span><strong>{service.ativo ? 'Ativo' : 'Pausado'}</strong></div>
+              </article>
+            </div>
+          </section>
+
+          <section className="appointment-details-section">
+            <h3>Descrição</h3>
+            <article className="appointment-details-review">
+              <p>{service.descricao || 'Nenhuma descrição cadastrada.'}</p>
+            </article>
+          </section>
         </div>
-        <button className="button button--secondary portfolio-close-button" type="button" onClick={onClose}>Fechar</button>
+        <footer className="appointment-details-footer">
+          <span>{service.ativo ? 'Disponível para novos agendamentos' : 'Este serviço está pausado'}</span>
+        </footer>
       </section>
     </div>
   );
@@ -113,6 +154,7 @@ export default function ProviderPortfolioPage() {
   const [bannerLoadError, setBannerLoadError] = useState('');
   const bannerUpdateVersion = useRef(0);
   const [notices, setNotices] = useState([]);
+  const [activeTab, setActiveTab] = useState('servicos');
   const nextNoticeId = useRef(0);
 
   useEffect(() => {
@@ -259,8 +301,13 @@ export default function ProviderPortfolioPage() {
         <div><p className="portfolio-eyebrow">Área do prestador</p><h1>Painel Profissional</h1></div>
         <span>{user?.nome_completo}</span>
       </header>
-      <nav className="portfolio-tabs" aria-label="Seção do painel profissional"><span className="portfolio-tab is-active">Serviços</span></nav>
+      <nav className="portfolio-tabs" aria-label="Seção do painel profissional">
+        <button type="button" className={`portfolio-tab ${activeTab === 'servicos' ? 'is-active' : ''}`} onClick={() => setActiveTab('servicos')}>Serviços</button>
+        <button type="button" className={`portfolio-tab ${activeTab === 'horarios' ? 'is-active' : ''}`} onClick={() => setActiveTab('horarios')}>Horários</button>
+      </nav>
 
+      {activeTab === 'horarios' ? <ProviderAvailabilityPage embedded /> : (
+        <>
       <section className="card portfolio-banner-panel">
         <div className="portfolio-section-heading">
           <div><h2>Banner profissional</h2><p>Uma única imagem para apresentar seu trabalho.</p></div>
@@ -284,7 +331,11 @@ export default function ProviderPortfolioPage() {
           />
         ) : null}
       </section>
+        </>
+      )}
 
+      {activeTab === 'servicos' ? (
+        <>
       <div className="portfolio-toast-stack" aria-live="polite" aria-relevant="additions text">
         {notices.map((notice) => {
           const NoticeIcon = notice.kind === 'success' || notice.kind === 'warning' ? CheckCircle2 : notice.kind === 'error' ? AlertCircle : LoaderCircle;
@@ -318,30 +369,60 @@ export default function ProviderPortfolioPage() {
         {!services.isLoading && services.services.length === 0 ? <p className="empty-state">Você ainda não publicou serviços.</p> : null}
 
         {services.services.length > 0 ? (
-          <div className="table-wrapper portfolio-table-scroll">
-            <table className="table portfolio-service-table">
-              <thead><tr><th>Serviço</th><th>Duração</th><th>Preço</th><th>Status</th><th className="portfolio-actions-heading">Ações</th></tr></thead>
-              <tbody>
-                {pagedServices.map((service) => (
-                  <tr key={serviceId(service)}>
-                    <td><strong>{service.titulo}</strong>{service.categoria?.nome ? <small>{service.categoria.nome}</small> : null}</td>
-                    <td>{service.duracao_padrao} min</td>
-                    <td className="portfolio-price">{formatCurrency(service.preco)}</td>
-                    <td>
-                      <button className={`portfolio-switch ${service.ativo ? 'is-active' : ''}`} type="button" role="switch" aria-checked={Boolean(service.ativo)} aria-label={`${service.ativo ? 'Pausar' : 'Ativar'} ${service.titulo}`} disabled={updatingServiceId === serviceId(service)} onClick={() => changeActive(service)}>
-                        <span />
-                      </button>
-                    </td>
-                    <td><div className="portfolio-actions">
-                      <button className="portfolio-action portfolio-action--view" type="button" title={`Visualizar ${service.titulo}`} onClick={() => setSelectedService(service)}><Search size={16} aria-hidden="true" /><span>Visualizar</span></button>
-                      <button className="portfolio-action" type="button" onClick={() => setEditingService(service)}><Pencil size={14} aria-hidden="true" />Editar</button>
-                      <button className="portfolio-action is-danger" type="button" onClick={() => removeService(service)}><Trash2 size={14} aria-hidden="true" />Arquivar</button>
-                    </div></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            className="portfolio-service-table"
+            minWidth={700}
+            getRowKey={(service) => serviceId(service)}
+            rows={pagedServices}
+            columns={[
+              {
+                key: 'titulo',
+                label: 'Serviço',
+                align: 'left',
+                render: (service) => (
+                  <div className="portfolio-service-name">
+                    <strong>{service.titulo}</strong>
+                    {service.categoria?.nome ? <small>{service.categoria.nome}</small> : null}
+                  </div>
+                ),
+              },
+              {
+                key: 'duracao_padrao',
+                label: 'Duração',
+                align: 'center',
+                render: (service) => `${service.duracao_padrao} min`,
+              },
+              {
+                key: 'preco',
+                label: 'Preço',
+                align: 'right',
+                render: (service) => <span className="portfolio-price">{formatCurrency(service.preco)}</span>,
+              },
+              {
+                key: 'ativo',
+                label: 'Status',
+                align: 'center',
+                render: (service) => (
+                  <button className={`portfolio-switch ${service.ativo ? 'is-active' : ''}`} type="button" role="switch" aria-checked={Boolean(service.ativo)} aria-label={`${service.ativo ? 'Pausar' : 'Ativar'} ${service.titulo}`} disabled={updatingServiceId === serviceId(service)} onClick={() => changeActive(service)}>
+                    <span />
+                  </button>
+                ),
+              },
+              {
+                key: 'acoes',
+                label: 'Ações',
+                align: 'center',
+                width: 132,
+                render: (service) => (
+                  <div className="portfolio-actions">
+                    <IconActionButton label={`Visualizar ${service.titulo}`} icon={<Search size={16} aria-hidden="true" />} onClick={() => setSelectedService(service)} />
+                    <IconActionButton label={`Editar ${service.titulo}`} icon={<Pencil size={15} aria-hidden="true" />} onClick={() => setEditingService(service)} />
+                    <IconActionButton label={`Arquivar ${service.titulo}`} icon={<Trash2 size={15} aria-hidden="true" />} danger onClick={() => removeService(service)} />
+                  </div>
+                ),
+              },
+            ]}
+          />
         ) : null}
         {pageCount > 1 ? (
           <nav className="portfolio-pagination" aria-label="Paginação de serviços">
@@ -351,6 +432,8 @@ export default function ProviderPortfolioPage() {
           </nav>
         ) : null}
       </section>
+        </>
+      ) : null}
 
       {showAddForm ? (
         <div className="portfolio-dialog-backdrop" role="presentation" onMouseDown={(event) => {

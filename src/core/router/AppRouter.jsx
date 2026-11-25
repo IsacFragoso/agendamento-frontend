@@ -10,7 +10,6 @@ import AccountSettingsPage from '../../modules/auth/pages/AccountSettingsPage';
 import ProviderOnboardingPage from '../../modules/auth/pages/ProviderOnboardingPage';
 import UnsupportedAccountPage from '../../modules/auth/pages/UnsupportedAccountPage';
 import ProviderDashboardPage from '../../modules/dashboard/pages/ProviderDashboardPage';
-import ProviderAvailabilityPage from '../../modules/dashboard/pages/ProviderAvailabilityPage';
 import ProviderPortfolioPage from '../../modules/dashboard/pages/ProviderPortfolioPage';
 import ClientDashboardPage from '../../modules/dashboard/pages/ClientDashboardPage';
 import MarketplacePage from '../../modules/providers/pages/MarketplacePage';
@@ -65,7 +64,6 @@ export function AppRouter() {
 
               <Route element={<RouteGuard allowedRoles={['PRESTADOR']} />}>
                 <Route path={ROUTE_PATHS.provider} element={<Navigate to={getProviderPath()} replace />} />
-                <Route path={getProviderPath('disponibilidade')} element={<ProviderAvailabilityPage />} />
                 <Route path={ROUTE_PATHS.providerPortfolio} element={<ProviderPortfolioPage />} />
                 <Route path={`${ROUTE_PATHS.provider}/:section`} element={<ProviderDashboardPage />} />
               </Route>

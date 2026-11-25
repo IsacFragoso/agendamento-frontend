@@ -7,6 +7,8 @@ import AccountSettingsPanel from '../../../shared/components/AccountSettingsPane
 import ClientHistory from '../components/ClientHistory';
 import PageHeader from '../../../shared/components/ui/PageHeader';
 import StatusBadge from '../../../shared/components/ui/StatusBadge';
+import StarRatingInput from '../../../shared/components/ui/StarRatingInput';
+import AppointmentDetailsDialog from '../components/AppointmentDetailsDialog';
 import { formatCurrency, formatDate, formatTime } from '../../../shared/utils/format';
 import './dashboards.css';
 
@@ -125,6 +127,7 @@ export default function ClientDashboardPage() {
           appointments={appointments.appointments}
           isLoading={appointments.isLoading}
           onReview={(appointment) => { setReviewRating('5'); setReviewComment(''); setReviewAppointment(appointment); }}
+          onDetails={(appointment) => setDetailsAppointment(appointment)}
           getClientReview={clientReview}
           getProviderReview={providerReview}
         />
@@ -133,25 +136,10 @@ export default function ClientDashboardPage() {
       {activeSection === 'perfil' ? <AccountSettingsPanel /> : null}
 
       {detailsAppointment ? (
-        <div className="provider-completion-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDetailsAppointment(null); }}>
-          <section className="provider-completion-dialog provider-appointment-dialog" role="dialog" aria-modal="true" aria-labelledby="client-appointment-details-title">
-            <button className="appointment-dialog-close" type="button" aria-label="Fechar" onClick={() => setDetailsAppointment(null)}>×</button>
-            <h2 id="client-appointment-details-title">Dados do agendamento</h2>
-            <dl className="provider-appointment-details">
-              <div><dt>Serviço</dt><dd>{detailsAppointment.servico?.titulo || 'Serviço'}</dd></div>
-              <div><dt>Profissional</dt><dd>{detailsAppointment.prestador?.usuario?.nome_completo || 'Profissional'}</dd></div>
-              <div><dt>Data e horário</dt><dd>{formatDate(detailsAppointment.data_hora_inicio)} · {formatTime(detailsAppointment.data_hora_inicio)}</dd></div>
-              <div><dt>Duração</dt><dd>{detailsAppointment.servico?.duracao_padrao || '—'} min</dd></div>
-              <div><dt>Valor</dt><dd>{formatCurrency(detailsAppointment.servico?.preco)}</dd></div>
-              <div><dt>Status</dt><dd>{detailsAppointment.status}</dd></div>
-              {detailsAppointment.status === 'CANCELADO' ? <>
-                <div><dt>Motivo do cancelamento</dt><dd>{detailsAppointment.motivo_cancelamento || 'Não informado'}</dd></div>
-                <div><dt>Cancelado por</dt><dd>{detailsAppointment.cancelado_por === 'CLIENTE' ? 'Cliente' : detailsAppointment.cancelado_por === 'PRESTADOR' ? 'Prestador' : 'Sistema'}</dd></div>
-              </> : null}
-              {providerReview(detailsAppointment) ? <div><dt>Avaliação do profissional</dt><dd>{providerReview(detailsAppointment).nota_estrelas} estrelas · {providerReview(detailsAppointment).comentario || 'Sem comentário'}</dd></div> : null}
-            </dl>
-          </section>
-        </div>
+        <AppointmentDetailsDialog
+          appointment={detailsAppointment}
+          onClose={() => setDetailsAppointment(null)}
+        />
       ) : null}
 
       {cancelAppointment ? (
@@ -174,7 +162,14 @@ export default function ClientDashboardPage() {
           <form className="provider-completion-dialog" role="dialog" aria-modal="true" aria-labelledby="client-review-title" onSubmit={submitReview}>
             <h2 id="client-review-title">Avaliar profissional</h2>
             <p>{reviewAppointment.servico?.titulo || 'Serviço'} · {reviewAppointment.prestador?.usuario?.nome_completo || 'Profissional'}</p>
-            <label className="field"><span>Nota</span><select value={reviewRating} onChange={(event) => setReviewRating(event.target.value)}>{[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating} {rating === 1 ? 'estrela' : 'estrelas'}</option>)}</select></label>
+            <div className="field">
+              <span>Nota</span>
+              <StarRatingInput
+                value={reviewRating}
+                onChange={setReviewRating}
+                disabled={appointments.isSubmitting}
+              />
+            </div>
             <label className="field"><span>Comentário (opcional)</span><textarea maxLength={2000} rows={4} value={reviewComment} onChange={(event) => setReviewComment(event.target.value)} /></label>
             {appointments.errorMessage ? <p className="feedback feedback--danger" role="alert">{appointments.errorMessage}</p> : null}
             <div className="provider-completion-dialog__actions"><button className="button button--secondary" type="button" disabled={appointments.isSubmitting} onClick={() => setReviewAppointment(null)}>Voltar</button><button className="button button--primary" type="submit" disabled={appointments.isSubmitting}>{appointments.isSubmitting ? 'Enviando...' : 'Enviar avaliação'}</button></div>

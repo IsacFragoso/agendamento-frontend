@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { CalendarPlus, Eye, Search, Star } from 'lucide-react';
+import IconActionButton from '../../../shared/components/ui/IconActionButton';
 import { getBookingPath } from '../../../core/router/paths';
 import { PROFILE_PHOTO_PLACEHOLDER, handleProfilePhotoError } from '../../../shared/utils/profile-photo';
 import { formatCurrency, formatDate, formatTime } from '../../../shared/utils/format';
@@ -20,16 +21,26 @@ export default function ClientHistory({
   appointments,
   isLoading,
   onReview,
+  onDetails,
   getClientReview = (appointment) => (appointment.avaliacoes || []).find((review) => review.avaliador_tipo === 'CLIENTE'),
   getProviderReview = (appointment) => (appointment.avaliacoes || []).find((review) => review.avaliador_tipo === 'PRESTADOR'),
 }) {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('TODOS');
   const [months, setMonths] = useState('TODOS');
+  const [historyPage, setHistoryPage] = useState(1);
 
   const stats = useMemo(() => getHistoryStats(appointments), [appointments]);
   const history = useMemo(() => getHistoryAppointments(appointments), [appointments]);
   const rows = useMemo(() => filterHistory(history, { search, status, months }), [history, search, status, months]);
+  const historyPageSize = 10;
+  const historyPageCount = Math.max(1, Math.ceil(rows.length / historyPageSize));
+  const currentHistoryPage = Math.min(historyPage, historyPageCount);
+  const visibleRows = rows.slice(
+    (currentHistoryPage - 1) * historyPageSize,
+    currentHistoryPage * historyPageSize,
+  );
+
 
   return (
     <div className="client-history">
@@ -69,19 +80,19 @@ export default function ClientHistory({
           <input
             aria-label="Buscar no histórico"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => { setSearch(event.target.value); setHistoryPage(1); }}
             placeholder="Buscar serviços, profissionais..."
           />
         </label>
         <label className="client-history__select">
           <span>Período</span>
-          <select value={months} onChange={(event) => setMonths(event.target.value)}>
+          <select value={months} onChange={(event) => { setMonths(event.target.value); setHistoryPage(1); }}>
             {HISTORY_PERIOD_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
         <label className="client-history__select">
           <span>Status</span>
-          <select value={status} onChange={(event) => setStatus(event.target.value)}>
+          <select value={status} onChange={(event) => { setStatus(event.target.value); setHistoryPage(1); }}>
             {HISTORY_STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
@@ -94,10 +105,10 @@ export default function ClientHistory({
           <div className="dashboard-table-wrap">
             <table className="client-history__table">
               <thead>
-                <tr><th>Profissional</th><th>Serviço</th><th>Data e hora</th><th>Status</th><th>Ação</th></tr>
+                <tr><th>Profissional</th><th>Serviço</th><th>Data e hora</th><th>Status</th><th>Avaliação</th><th>Ação</th></tr>
               </thead>
               <tbody>
-                {rows.map((appointment) => (
+                {visibleRows.map((appointment) => (
                   <tr key={appointment.id_agendamento || appointment.id}>
                     <td>
                       <div className="client-history__provider">
@@ -117,26 +128,38 @@ export default function ClientHistory({
                       </span>
                     </td>
                     <td>
-                      <div className="client-history__actions">
-                        {appointment.status === 'CONCLUIDO' && onReview ? (
-                          getClientReview(appointment)
-                            ? <span className="client-history__review">Você avaliou: {getClientReview(appointment).nota_estrelas}★</span>
-                            : <button className="client-history__action" type="button" onClick={() => onReview(appointment)}>Avaliar profissional</button>
-                        ) : null}
-                        {getProviderReview(appointment) ? (
-                          <span className="client-history__review">Profissional avaliou você: {getProviderReview(appointment).nota_estrelas}★</span>
-                        ) : null}
-                        {appointment.status === 'CANCELADO' ? (
-                          <span className="client-history__review">
-                            {appointment.motivo_cancelamento || 'Motivo não informado'}
-                            {' · '}
-                            {appointment.cancelado_por === 'CLIENTE' ? 'Cancelado pelo cliente' : appointment.cancelado_por === 'PRESTADOR' ? 'Cancelado pelo prestador' : appointment.cancelado_por === 'SISTEMA' ? 'Cancelado pelo sistema' : 'Responsável não informado'}
+                      {(() => {
+                        const displayedReview = getClientReview(appointment) || getProviderReview(appointment);
+                        return displayedReview ? (
+                          <span className="history-review-value" title={displayedReview.comentario || 'Sem comentário'}>
+                            {displayedReview.nota_estrelas}
+                            <Star size={14} fill="currentColor" aria-hidden="true" />
                           </span>
+                        ) : (
+                          <span className="history-review-empty">—</span>
+                        );
+                      })()}
+                    </td>
+                    <td>
+                      <div className="client-history__actions">
+                        {appointment.status === 'CONCLUIDO' && onReview && !getClientReview(appointment) ? (
+                          <IconActionButton
+                            label="Avaliar profissional"
+                            icon={<Star size={16} aria-hidden="true" />}
+                            onClick={() => onReview(appointment)}
+                          />
                         ) : null}
                         {appointment.id_prestador && appointment.id_servico ? (
-                          <Link className="client-history__action" to={getBookingPath(appointment.id_prestador, appointment.id_servico)}>
-                            Agendar novamente
+                          <Link className="history-icon-button" title="Agendar novamente" aria-label="Agendar novamente" to={getBookingPath(appointment.id_prestador, appointment.id_servico)}>
+                            <CalendarPlus size={16} aria-hidden="true" />
                           </Link>
+                        ) : null}
+                        {onDetails ? (
+                          <IconActionButton
+                            label="Ver detalhes do atendimento"
+                            icon={<Eye size={16} aria-hidden="true" />}
+                            onClick={() => onDetails(appointment)}
+                          />
                         ) : null}
                       </div>
                     </td>
@@ -145,6 +168,17 @@ export default function ClientHistory({
               </tbody>
             </table>
           </div>
+        ) : null}
+        {rows.length > historyPageSize ? (
+          <nav className="history-pagination" aria-label="Paginação do histórico">
+            <button type="button" disabled={currentHistoryPage === 1} onClick={() => setHistoryPage((page) => Math.max(1, page - 1))}>
+              Anterior
+            </button>
+            <span>Página {currentHistoryPage} de {historyPageCount}</span>
+            <button type="button" disabled={currentHistoryPage === historyPageCount} onClick={() => setHistoryPage((page) => Math.min(historyPageCount, page + 1))}>
+              Próxima
+            </button>
+          </nav>
         ) : null}
       </section>
     </div>
